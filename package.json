@@ -1,0 +1,52 @@
+{
+  "name": "dsh-intelligent-ui",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Intelligent UI for DeepSeek Harness: the model answers with an openui-lang program and the Web GUI renders it as a live, interactive UI inside the chat",
+  "license": "MIT",
+  "keywords": [
+    "deepseek-harness",
+    "dsh-plugin",
+    "dsh-bundle",
+    "openui",
+    "generative-ui",
+    "intelligent-ui"
+  ],
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "src",
+    "scripts",
+    "locale/*.json",
+    "icon.svg",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node scripts/build-client.mjs --strict",
+    "test": "node --test",
+    "check": "node scripts/build-client.mjs --strict && node --check client.js && node --test"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-tool"
+      ]
+    }
+  }
+}

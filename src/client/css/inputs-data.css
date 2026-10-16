@@ -1,0 +1,896 @@
+/*
+ * components-b — styles for the Inputs, Media/data and Play component groups.
+ * Surfaces/text/borders use --dsw-alias-* host tokens only. The only literal colours are
+ * the --iui-c-chart1..6 data-palette variables defined by client-shell in base.css.
+ * Every class is prefixed iui-.
+ */
+
+/* --- icon -------------------------------------------------------------------------------- */
+
+.iui-icon {
+  display: inline-block;
+  flex: none;
+  vertical-align: middle;
+}
+
+/* --- last-resort guard (a component body that throws) ------------------------------------ */
+
+.iui-b-guard-error {
+  display: block;
+  padding: 8px 10px;
+  border: 1px solid var(--dsw-alias-state-error-primary);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* --- shared form field ------------------------------------------------------------------- */
+
+.iui-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  color: var(--dsw-alias-label-primary);
+}
+
+.iui-field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.iui-field-hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.iui-input,
+.iui-textarea,
+.iui-select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.iui-input::placeholder,
+.iui-textarea::placeholder {
+  color: var(--dsw-alias-label-secondary);
+  opacity: 1;
+}
+
+.iui-input:hover,
+.iui-textarea:hover,
+.iui-select:hover {
+  border-color: var(--dsw-alias-border-l2);
+}
+
+.iui-input:focus,
+.iui-textarea:focus,
+.iui-select:focus {
+  border-color: var(--dsw-alias-brand-primary);
+}
+
+.iui-textarea {
+  resize: vertical;
+  min-height: 64px;
+}
+
+.iui-select-wrap {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.iui-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 28px;
+  cursor: pointer;
+}
+
+.iui-select-wrap::after {
+  content: '';
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--dsw-alias-label-secondary);
+  border-bottom: 1.5px solid var(--dsw-alias-label-secondary);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+/* --- buttons ----------------------------------------------------------------------------- */
+
+.iui-btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.iui-btn:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 1px;
+}
+
+.iui-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.iui-btn-primary {
+  background: var(--dsw-alias-brand-primary);
+  border-color: var(--dsw-alias-brand-primary);
+  color: var(--dsw-alias-bg-base);
+}
+
+.iui-btn-secondary {
+  background: var(--dsw-alias-bg-layer-2);
+  border-color: var(--dsw-alias-border-l1);
+  color: var(--dsw-alias-label-primary);
+}
+
+.iui-btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--dsw-alias-label-primary);
+}
+
+.iui-btn-ghost:hover {
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.iui-btn-outline {
+  background: transparent;
+  border-color: var(--dsw-alias-border-l1);
+  color: var(--dsw-alias-label-primary);
+}
+
+.iui-btn-outline:hover {
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.iui-btn-danger {
+  background: var(--dsw-alias-state-error-primary);
+  border-color: var(--dsw-alias-state-error-primary);
+  color: var(--dsw-alias-bg-base);
+}
+
+.iui-btn-sm {
+  min-height: 28px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.iui-btn-lg {
+  min-height: 38px;
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+.iui-btn-block {
+  display: flex;
+  width: 100%;
+}
+
+.iui-btn-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.iui-btn-icon {
+  flex: none;
+}
+
+.iui-icon-btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.iui-icon-btn:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 1px;
+}
+
+.iui-icon-btn-ghost:hover {
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.iui-icon-btn-secondary {
+  background: var(--dsw-alias-bg-layer-2);
+  border-color: var(--dsw-alias-border-l1);
+}
+
+.iui-icon-btn-outline {
+  border-color: var(--dsw-alias-border-l1);
+}
+
+.iui-icon-btn-primary {
+  background: var(--dsw-alias-brand-primary);
+  border-color: var(--dsw-alias-brand-primary);
+  color: var(--dsw-alias-bg-base);
+}
+
+.iui-icon-btn-danger {
+  background: var(--dsw-alias-state-error-primary);
+  border-color: var(--dsw-alias-state-error-primary);
+  color: var(--dsw-alias-bg-base);
+}
+
+.iui-pressable {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.iui-pressable.iui-is-interactive {
+  cursor: pointer;
+}
+
+.iui-pressable.iui-is-interactive:hover {
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.iui-pressable.iui-is-selected {
+  box-shadow: inset 0 0 0 1px var(--dsw-alias-brand-primary);
+}
+
+.iui-pressable:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 1px;
+}
+
+/* --- segmented control ------------------------------------------------------------------- */
+
+.iui-segmented {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  max-width: 100%;
+  padding: 2px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.iui-segmented-block {
+  display: flex;
+  width: 100%;
+}
+
+.iui-segmented-block .iui-segmented-item {
+  flex: 1 1 0;
+}
+
+.iui-segmented-item {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 28px;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.iui-segmented-item:hover {
+  color: var(--dsw-alias-label-primary);
+}
+
+.iui-segmented-item.iui-is-active {
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l1);
+}
+
+.iui-segmented-item:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: -1px;
+}
+
+.iui-segmented-label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- slider ------------------------------------------------------------------------------ */
+
+.iui-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+.iui-slider-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.iui-slider-value {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--dsw-alias-label-primary);
+}
+
+.iui-slider-input {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--dsw-alias-brand-primary);
+  cursor: pointer;
+}
+
+.iui-slider-marks {
+  position: relative;
+  height: 16px;
+  margin-top: -2px;
+}
+
+.iui-slider-mark {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* --- checkbox / radio -------------------------------------------------------------------- */
+
+.iui-check {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  cursor: pointer;
+  color: var(--dsw-alias-label-primary);
+}
+
+.iui-check-input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--dsw-alias-brand-primary);
+  cursor: pointer;
+}
+
+.iui-check-label {
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.iui-check-label.iui-is-done {
+  text-decoration: line-through;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.iui-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.iui-radio {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  cursor: pointer;
+  color: var(--dsw-alias-label-primary);
+}
+
+.iui-radio-input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--dsw-alias-brand-primary);
+  cursor: pointer;
+}
+
+.iui-radio-label {
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.iui-radio-desc {
+  display: block;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.iui-radio-card {
+  box-sizing: border-box;
+  padding: 10px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-1);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.iui-radio-card:hover {
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.iui-radio-card.iui-is-active {
+  border-color: var(--dsw-alias-brand-primary);
+}
+
+/* --- timer ------------------------------------------------------------------------------- */
+
+.iui-timer {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+}
+
+.iui-timer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.iui-timer-label {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.iui-timer-time {
+  flex: none;
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+}
+
+.iui-timer-bar {
+  display: block;
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.iui-timer-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--dsw-alias-brand-primary);
+  transition: width 0.3s linear;
+}
+
+.iui-timer.iui-is-running .iui-timer-fill {
+  background: var(--dsw-alias-state-success-primary);
+}
+
+.iui-timer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* --- form -------------------------------------------------------------------------------- */
+
+.iui-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* --- image ------------------------------------------------------------------------------- */
+
+.iui-image {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.iui-image-el {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.iui-image-ratio .iui-image-el {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+}
+
+.iui-image-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 96px;
+  padding: 12px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.iui-image-fallback-text {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* --- table ------------------------------------------------------------------------------- */
+
+.iui-table-wrap {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-base);
+}
+
+.iui-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.iui-th {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.iui-td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  vertical-align: top;
+  line-height: 1.45;
+}
+
+.iui-td-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.iui-tr:last-child .iui-td {
+  border-bottom: none;
+}
+
+/* --- chart ------------------------------------------------------------------------------- */
+
+.iui-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  color: var(--dsw-alias-label-primary);
+}
+
+.iui-chart-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.iui-chart-empty {
+  align-items: center;
+  justify-content: center;
+  min-height: 96px;
+  padding: 16px;
+  border: 1px dashed var(--dsw-alias-border-l1);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.iui-chart-empty-text {
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.iui-chart-grid {
+  stroke: var(--dsw-alias-border-l2);
+  stroke-width: 1;
+}
+
+.iui-chart-axis-line {
+  stroke: var(--dsw-alias-border-l1);
+  stroke-width: 1;
+}
+
+.iui-chart-tick {
+  fill: var(--dsw-alias-label-secondary);
+  font-size: 10px;
+  font-family: inherit;
+}
+
+.iui-chart-bar {
+  fill: currentColor;
+}
+
+.iui-chart-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.iui-chart-area {
+  fill: currentColor;
+  fill-opacity: 0.18;
+  stroke: none;
+}
+
+.iui-chart-dot {
+  fill: currentColor;
+  stroke: var(--dsw-alias-bg-base);
+  stroke-width: 1;
+}
+
+.iui-chart-scatter {
+  fill-opacity: 0.85;
+}
+
+.iui-chart-slice {
+  fill: currentColor;
+  stroke: var(--dsw-alias-bg-base);
+  stroke-width: 1;
+}
+
+.iui-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.iui-chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.iui-chart-swatch {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: currentColor;
+}
+
+.iui-chart-legend-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.iui-chart-legend-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Data palette: the --iui-c-chart1..6 variables are defined in base.css (client-shell). */
+.iui-chart-c1 { color: var(--iui-c-chart1); }
+.iui-chart-c2 { color: var(--iui-c-chart2); }
+.iui-chart-c3 { color: var(--iui-c-chart3); }
+.iui-chart-c4 { color: var(--iui-c-chart4); }
+.iui-chart-c5 { color: var(--iui-c-chart5); }
+.iui-chart-c6 { color: var(--iui-c-chart6); }
+
+/* --- flashcard --------------------------------------------------------------------------- */
+
+.iui-flashcard {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  perspective: 900px;
+  cursor: pointer;
+  outline: none;
+}
+
+.iui-flashcard:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 2px;
+  border-radius: 12px;
+}
+
+.iui-flashcard-inner {
+  display: grid;
+  transform-style: preserve-3d;
+  transition: transform 0.45s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.iui-flashcard.iui-is-flipped .iui-flashcard-inner {
+  transform: rotateY(180deg);
+}
+
+.iui-flashcard-face {
+  grid-area: 1 / 1;
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.iui-flashcard-front {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.iui-flashcard-back {
+  transform: rotateY(180deg);
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.iui-flashcard-body {
+  min-width: 0;
+}
+
+.iui-flashcard-hint {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* --- celebration ------------------------------------------------------------------------- */
+
+.iui-celebration {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 0;
+  overflow: visible;
+  transition: height 0.2s ease;
+}
+
+.iui-celebration.iui-is-bursting {
+  height: 80px;
+}
+
+.iui-confetti {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.iui-confetti-piece {
+  position: absolute;
+  top: 0;
+  width: 7px;
+  height: 10px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0;
+  animation: iui-confetti-fall 1.5s ease-in forwards;
+}
+
+@keyframes iui-confetti-fall {
+  0% {
+    transform: translateY(-12px) rotate(0deg);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(76px) rotate(320deg);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iui-confetti-piece {
+    animation: none;
+    opacity: 0;
+  }
+
+  .iui-flashcard-inner,
+  .iui-timer-fill {
+    transition: none;
+  }
+}

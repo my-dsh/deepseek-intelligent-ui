@@ -1,0 +1,7 @@
+root = Svg([sky, ground, sun, balloon, clouds, label], "0 0 320 200", "100%", 200)
+sky = Rect(0, 0, 320, 200, "chart1", null, null, 0.25, 0)
+ground = Path("M0 160 Q80 130 160 160 T320 155 L320 200 L0 200 Z", "chart3", null, 0.9)
+sun = G([Circle(268, 44, 18, "chart4"), Ellipse(268, 44, 26, 12, "chart4", null, null, 0.35)], "translate(0 0)", 0.95)
+balloon = G([Polyline("140,96 156,116 124,116 140,96", "chart2", 2, null, 0.9), Line(140, 116, 140, 150, "chart2", 1.5, 0.8), Polygon("124,116 156,116 148,128 132,128", "chart5", null, 1.5, 1)], null, 1)
+clouds = Polyline("20,60 40,48 62,58 84,50 104,62", "chart6", 2.5, null, 0.7)
+label = SvgText("Skyline study", 12, 188, 12, "chart1", "start", "semibold")

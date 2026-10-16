@@ -1,0 +1,1 @@
+root = Col([Title("Unknown components", "lg"), Markdown("## Heading"), Math("x^2"), SearchImage("cat", 1.4), Map(1, 2), MapMarker(1, 2), YouTube("abc"), HtmlView("<b>x</b>")], 3)

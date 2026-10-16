@@ -1,0 +1,15 @@
+root = Col([head, grid], 4)
+$a = 2
+$b = 3
+$c = 4
+$flag = true
+$text = "x"
+list = [10, 20, 30]
+obj = {a: 1, b: 2, "quoted key": 3}
+head = Title("Operator precedence", "lg")
+grid = Grid([r1, r2, r3, r4, r5], 2, 200, 3)
+r1 = Card([Caption("plus times modulo"), Text($a + $b * $c + ""), Text(($a + $b) * $c + ""), Text($b % $a + "")], "soft", 3, 2)
+r2 = Card([Caption("comparisons and logic"), Text($a < $b && $b < $c ? "ascending" : "not ascending"), Text(!$flag || $a == 2 ? "yes" : "no"), Text($a != $b ? "different" : "same")], "soft", 3, 2)
+r3 = Card([Caption("string concat"), Text($text + $a + " and " + ($a + $b) + " end"), Text("n" + (1 + 2))], "soft", 3, 2)
+r4 = Card([Caption("ternary index member"), Text(list[1] + ""), Text(obj["quoted key"] + ""), Text(obj.a + $c + "")], "soft", 3, 2)
+r5 = Card([Caption("unary and grouping"), Text(-$a * 2 + ""), Text(($a > 1 ? $b : $c) + 1 + ""), Text(null == null ? "null ok" : "bad")], "soft", 3, 2)

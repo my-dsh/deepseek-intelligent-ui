@@ -1,0 +1,8 @@
+root = Col([head, grid], 4)
+$label = "  quarterly revenue report  "
+head = Row([Title("Text functions", "lg"), Spacer(), Badge(@Upper("text"), "info")], 2)
+grid = Grid([c1, c2, c3, c4], 2, 200, 3)
+c1 = Card([Caption("Format Join"), Text(@Format(1234567.891, "currency", 2), "sm"), Text(@Format(0.7345, "percent", 1), "sm"), Text(@Format(1234567, "compact"), "sm"), Text(@Join(["a", "b", "c"], " / "), "sm")], "soft", 3, 2)
+c2 = Card([Caption("Plural Pad Duration"), Text(@Plural(1, "day") + " " + @Plural(3, "day") + " " + @Pad("7", 3, "0") + " " + @Duration(3725), "sm")], "soft", 3, 1)
+c3 = Card([Caption("Upper Lower Trim Capitalize"), Text(@Upper("hello") + " " + @Lower("WORLD") + " " + @Trim($label) + " " + @Capitalize("openui"), "sm")], "soft", 3, 1)
+c4 = Card([Caption("Split Replace Default MixColor"), Text(@Join(@Split("a,b,c", ","), "|"), "sm"), Text(@Replace("a-b-c", "-", "+"), "sm"), Text(@Default(null, "fallback") + " " + @Default("set", "fallback"), "sm"), Box([Text("tint", "xs")], null, null, 1, @MixColor("#ffffff", "#0285ff", 0.5), "md")], "soft", 3, 2)

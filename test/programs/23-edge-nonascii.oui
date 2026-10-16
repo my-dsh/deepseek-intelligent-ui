@@ -1,0 +1,6 @@
+root = Col([head, accents, cjk, emoji, escaped], 3)
+head = Title("Ünïcödé — 日本語, 한국어, Ελληνικά", "lg")
+accents = Text("Café, naïve, résumé, Ångström, Ğüçlü, straße", "sm")
+cjk = Text("中文文本测试 · 日本語のテキスト · 한국어 텍스트", "sm")
+emoji = Text("Rocket 🚀, chart 📈, check ✅, family 👨‍👩‍👧‍👦", "sm")
+escaped = Text("Šžđčć — Δοκιμή — Тест", "sm")

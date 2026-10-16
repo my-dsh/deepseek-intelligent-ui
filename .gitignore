@@ -1,0 +1,9 @@
+# dependencies
+node_modules/
+
+# logs and OS noise
+*.log
+.DS_Store
+
+# NOTE: client.js is the built browser artifact and IS committed on purpose:
+# the plugin installs straight from a git clone with no build step.

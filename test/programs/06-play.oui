@@ -1,0 +1,9 @@
+root = Col([head, cards, celebrate], 4)
+$known = 0
+$total = 3
+head = Row([Title("Study deck", "lg"), Spacer(), Badge(@Format($known, "number") + " / " + @Format($total, "number") + " mastered", "info")], 2)
+cards = Grid([c1, c2, c3], 3, 180, 3)
+c1 = Flashcard("What does @Count do?", "Returns the number of items in an array.", "It never mutates the list.")
+c2 = Flashcard("What is @Each for?", "Repeats a template once per list item.", "The loop variable shadows statements.")
+c3 = Flashcard("When is @Reset useful?", "It restores every state default and re-renders.", "Pair it with a ghost button.")
+celebrate = Celebration($known >= $total)

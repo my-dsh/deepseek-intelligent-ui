@@ -1,0 +1,12 @@
+root = Col([head, grid1, grid2], 4)
+$year = [{year: 2021, revenue: 120, cost: 80}, {year: 2022, revenue: 160, cost: 96}, {year: 2023, revenue: 210, cost: 118}, {year: 2024, revenue: 265, cost: 140}]
+$mix = [{channel: "Direct", amount: 45}, {channel: "Partner", amount: 30}, {channel: "Ads", amount: 25}]
+head = Row([Title("Chart gallery", "lg"), Spacer(), Badge("6 types", "info")], 2)
+grid1 = Grid([bar, line, area], 3, 180, 3)
+grid2 = Grid([pie, donut, scatter], 3, 180, 3)
+bar = Card([Caption("bar"), Chart("bar", $year, "year", ["revenue", "cost"], "currency", null, false, 160)], "soft", 3, 1)
+line = Card([Caption("line"), Chart("line", $year, "year", ["revenue"], null, null, false, 160)], "soft", 3, 1)
+area = Card([Caption("area"), Chart("area", $year, "year", ["revenue", "cost"], null, null, true, 160)], "soft", 3, 1)
+pie = Card([Caption("pie"), Chart("pie", $mix, "channel", ["amount"], "percent", null, false, 160)], "soft", 3, 1)
+donut = Card([Caption("donut"), Chart("donut", $mix, "channel", ["amount"], "percent", null, false, 160)], "soft", 3, 1)
+scatter = Card([Caption("scatter"), Chart("scatter", $year, "revenue", ["cost"], null, null, false, 160)], "soft", 3, 1)

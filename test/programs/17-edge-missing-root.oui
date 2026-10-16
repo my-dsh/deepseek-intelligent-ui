@@ -1,0 +1,2 @@
+title = Title("No root statement here", "lg")
+value = 42

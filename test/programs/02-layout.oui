@@ -1,0 +1,8 @@
+root = Col([header, rowA, boxA, gridA, cards, carousel, popover, Divider(), Spacer()], 4)
+header = Row([Title("Layout gallery", "lg"), Spacer(), Badge("9 components", "info")], 2, "center", "between", true)
+rowA = Row([Caption("left"), Caption("center"), Caption("right")], 2, "center", "between")
+boxA = Box([Text("Box with padding, background, border and a fixed height", "sm")], "column", 2, 3, "surface", "lg", true, "100%", 120, 1, "center", "center")
+gridA = Grid([Card([Caption("one")], "soft", 2, 1), Card([Caption("two")], "soft", 2, 1), Card([Caption("three")], "soft", 2, 1), Card([Caption("four")], "soft", 2, 1)], 2, 140, 3)
+cards = Card([Title("Card body", "md"), Text("Cards wrap any children and take a variant.", "sm")], "outline", 4, 2)
+carousel = Carousel([Card([Caption("Slide 1")], "soft"), Card([Caption("Slide 2")], "soft"), Card([Caption("Slide 3")], "soft")], 220, 3)
+popover = Popover(Button("Details", null, "ghost"), Card([Text("Popover content appears on click.", "sm")], "soft", 3, 2))

@@ -1,0 +1,11 @@
+root = Col([head, grid], 4)
+$sales = [{region: "EMEA", product: "Alpha", date: "2026-04-13", amount: 120}, {region: "EMEA", product: "Beta", date: "2026-03-12", amount: 80}, {region: "APAC", product: "Alpha", date: "2026-03-12", amount: 60}, {region: "APAC", product: "Gamma", date: "2026-04-13", amount: 140}, {region: "AMER", product: "Beta", date: "2026-04-13", amount: 200}]
+$prices = [12, 15, 11, 19, 22, 18, 25, 30]
+head = Row([Title("Data functions", "lg"), Spacer(), Badge(@Count($sales) + " rows", "info")], 2)
+grid = Grid([c1, c2, c3, c4, c5, c6], 2, 220, 3)
+c1 = Card([Caption("GroupBy"), Table(["Region", "Amount"], @Each(@GroupBy($sales, "region", "amount"), "g", [g.key, @Format(g.value, "currency", 0)]))], "soft", 3, 1)
+c2 = Card([Caption("Pivot"), Table(["Region", "Alpha", "Beta", "Gamma"], @Each(@Pivot($sales, "region", "product", "amount"), "p", [p.key, p.Alpha, p.Beta, p.Gamma]))], "soft", 3, 1)
+c3 = Card([Caption("Top"), Table(["Region", "Total"], @Each(@Top(@GroupBy($sales, "region", "amount"), "value", 5), "t", [t.key, t.value]))], "soft", 3, 1)
+c4 = Card([Caption("Cumulative MovingAvg Change"), Text(@Join(@Each(@Cumulative($prices, ""), "n", n + ""), ", "), "sm"), Text(@Join(@Each(@MovingAvg($prices, "", 3), "n", @Format(n, "number", 1)), ", "), "sm"), Text(@Format(@Change(225, 200), "number", 2), "sm")], "soft", 3, 2)
+c5 = Card([Caption("Histogram Stats"), Chart("bar", @Histogram($prices, 5), "key", ["value"], null, null, false, 140), Text("mean " + @Format(@Stats($prices).mean, "number", 2) + " median " + @Format(@Stats($prices).median, "number", 2), "sm")], "soft", 3, 2)
+c6 = Card([Caption("Between Bucket"), Text(@Count(@Between($sales, "amount", 80, 150)) + " between, " + @Count(@Bucket($sales, "date", "month", "amount", "sum")) + " buckets"), Caption("GroupBy, Pivot, Top, Cumulative, MovingAvg, Change, Histogram and Stats are exercised above.")], "soft", 3, 2)

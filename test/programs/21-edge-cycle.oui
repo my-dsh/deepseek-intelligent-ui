@@ -1,0 +1,3 @@
+root = Col([Title("Reference cycle", "lg"), Text(a + ""), Caption(b + "")])
+a = b
+b = a

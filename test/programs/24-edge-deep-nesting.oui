@@ -1,0 +1,2 @@
+root = Col([Col([Col([Col([Col([Col([Col([Col([Col([Col([Col([Col([Col([Col([Col([Col([Col([Col([Col([Col([Col([Col([Col([Col([Col([Col([Col([Col([Col([Col([Text("deep")], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)], 1)
+note = Caption("30 nested Col levels")

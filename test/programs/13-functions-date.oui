@@ -1,0 +1,8 @@
+root = Col([head, grid], 4)
+$start = "2026-01-15"
+$end = "2026-07-01"
+head = Row([Title("Date functions", "lg"), Spacer(), Badge(@FormatDate(@Now(), "date"), "info")], 2)
+grid = Grid([c1, c2, c3], 3, 220, 3)
+c1 = Card([Caption("Now Today"), Text(@FormatDate(@Now(), "datetime") + " " + @FormatDate(@Today(), "date"), "sm")], "soft", 3, 1)
+c2 = Card([Caption("AddDays AddMonths StartOf"), Text(@FormatDate(@AddDays($start, 30), "date") + " " + @FormatDate(@AddMonths($start, 3), "date") + " " + @FormatDate(@StartOf($start, "month"), "date"), "sm")], "soft", 3, 1)
+c3 = Card([Caption("DaysBetween MonthsBetween"), Text(@DaysBetween($start, $end) + " days " + @MonthsBetween($start, $end) + " months"), Text(@FormatDate($end, "date")), Text($start + " to " + $end, "xs", "muted")], "soft", 3, 2)

@@ -1,0 +1,11 @@
+root = Col([head, toggle, bump, list, groups, matrix], 4)
+$hungry = []
+$items = [{name: "Apples", qty: 4}, {name: "Bread", qty: 1}, {name: "Cheese", qty: 2}]
+head = Row([Title("@Each flows", "md"), Spacer(), Badge(@Count($hungry) + " checked", @Count($hungry) > 0 ? "success" : "neutral")], 2)
+toggle = Row(@Each($items, "it", Button(it.name, @Set($hungry, @Toggle($hungry, it.name)), @Includes($hungry, it.name) ? "solid" : "outline", null, "sm")), 2, null, null, true)
+bump = Row([Button("Add one to each", @Set($items, @Each($items, "it", {name: it.name, qty: it.qty + 1})), "outline", null, "sm")], 2)
+list = Col(@Each($items, "it", Row([Icon(@Includes($hungry, it.name) ? "check-circle" : "circle", "sm", @Includes($hungry, it.name) ? "success" : "faint"), Text(it.name, "sm", null, null, false, @Includes($hungry, it.name)), Spacer(), Text("x" + it.qty, "sm", "muted", "medium", false, false, true)], 2, "center")), 2)
+groups = Grid([g1, g2], 2, 140, 3)
+g1 = Card([Caption("Names"), Text(@Join(@Each($items, "it", it.name), ", "), "sm")], "soft", 3, 1)
+g2 = Card([Caption("Total units"), Title(@Sum(@Each($items, "it", it.qty)) + "", "lg")], "soft", 3, 1)
+matrix = Table(["Item", "Qty", "Status"], @Each($items, "it", [it.name, it.qty, @Includes($hungry, it.name) ? "packed" : "todo"]))

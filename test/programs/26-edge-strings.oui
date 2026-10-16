@@ -1,0 +1,4 @@
+root = Col([a, b, c], 1)
+a = Text("newline:\nsecond line")
+b = Text("quote:\" and backslash:\\ and slash:/")
+c = Text("tab:\there")

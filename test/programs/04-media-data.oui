@@ -1,0 +1,7 @@
+root = Col([head, media, facts, table, chart], 4)
+$rows = [{region: "EMEA", revenue: 420, units: 1200}, {region: "APAC", revenue: 310, units: 980}, {region: "AMER", revenue: 505, units: 1420}]
+head = Row([Title("Media and data", "lg"), Spacer(), Icon("database", "sm", "info")], 2)
+media = Row([Image("https://example.com/chart.png", "Revenue by region", 1.6, "lg", "cover"), Image("https://example.com/logo.png", "Company logo", 1, "full", "contain")], 3)
+facts = Row([Badge("Live", "success"), Caption("Numbers refresh hourly"), Icon("clock", "sm")], 2)
+table = Table(["Region", "Revenue", "Units", "Share"], @Each($rows, "r", [r.region, @Format(r.revenue, "currency", 0), r.units, @Format(@Percent(r.revenue, 1235), "percent", 1)]))
+chart = Chart("bar", $rows, "region", ["revenue", "units"], "currency", null, false, 220)

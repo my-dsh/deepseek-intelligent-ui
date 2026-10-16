@@ -1,0 +1,17 @@
+root = Col([header, layoutRow, gridRow, textRow, listCol, drawRow, inputRow, dataRow, playRow], 4)
+$name = "Ada"
+$on = true
+$answer = "a"
+$level = 3
+$when = "2026-03-01"
+$step = "one"
+header = Row([Title("Kitchen sink", "xl"), Spacer(), Badge("48 components", "success")], 2)
+layoutRow = Row([Col([Caption("Col")], 0), Box([Caption("Box")], "column", 1, 2, "surface", "md", true, null, null, null, "start", "start"), Card([Caption("Card")], "soft", 2, 1), Spacer(), Divider()], 3)
+gridRow = Grid([Carousel([Caption("Slide A"), Caption("Slide B")], 160, 2), Popover(Button("Popover", null, "ghost"), Text("Hidden until opened", "sm"))], 2, 200, 3)
+textRow = Row([Label("Label"), Title("Title", "md"), Text("Text", "sm"), Caption("Caption"), Badge("Badge", "info"), Link("Link", "https://example.com"), Quote("Quote", "Cite"), Code("Code()", "js")], 2, "center", "start", true)
+listCol = Col([List([li1, "plain item"], "bullet")], 1)
+li1 = ListItem("ListItem", "with a description", "check")
+drawRow = Svg([G([Circle(20, 20, 8, "chart1"), Ellipse(45, 20, 10, 6, "chart2"), Rect(60, 12, 16, 16, "chart3"), Line(80, 12, 96, 28, "chart4", 2), Path("M100 28 L110 12 L120 28 Z", "chart5"), Polyline("130,28 140,14 150,28", "chart6", 2), Polygon("160,28 170,14 180,28", "chart1"), SvgText("draw", 190, 24, 10, "chart2", "start", "normal")], null, 1)], "0 0 240 40", "100%", 60)
+inputRow = Form([Row([Input($name, "Name", "text", "Type"), TextArea("", "Notes", "Notes", 2), Select($level, ["1", "2", "3"], "Level", "Pick")], 3), Row([SegmentedControl($step, ["one", "two"]), Slider($level, 1, 5, 1, "Level", null)], 2), Row([Checkbox($on, "Checked", false), RadioGroup($answer, ["a", "b"], "Pick one")], 2), Row([DatePicker($when, "Date", null, null), Timer(60, "Timer"), Pressable([Text("Pressable", "sm")], null, false, 2, "surface", "md")], 3), Row([Button("Button", null, "solid"), IconButton("star", null, "Star", "ghost")], 2)])
+dataRow = Grid([Image("https://example.com/a.png", "Image", 1.4, "md", "cover"), Card([Icon("image", "sm"), Table(["A", "B"], [["1", "2"], ["3", "4"]])], "outline", 2, 2), Card([Chart("bar", [{k: "a", v: 1}, {k: "b", v: 2}], "k", ["v"], null, null, false, 120)], "outline", 2, 2)], 3, 180, 3)
+playRow = Grid([Flashcard("Front", "Back", "Hint"), Celebration($level >= 3)], 2, 180, 3)

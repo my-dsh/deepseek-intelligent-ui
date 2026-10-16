@@ -1,0 +1,1 @@
+root = Col([Title("Unknown functions", "lg"), Text(@Nope("x") + ""), Text(@AlsoMissing(1, 2) + "")], 3)

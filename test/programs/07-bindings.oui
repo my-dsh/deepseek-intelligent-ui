@@ -1,0 +1,9 @@
+root = Card([head, controls, derived, actions], null, 5, 4)
+$name = "Sam"
+$score = 42
+$active = true
+$tier = "gold"
+head = Col([Title("@Set and @Reset", "lg"), Text("Every control writes one $variable; derived text recomputes.", "sm", "muted")], 1)
+controls = Col([Row([Label("Name"), Input($name, null, "text", "Type a name")], 3), Row([Label("Score"), Slider($score, 0, 100, 1, null, " pts")], 3), Row([Label("Active"), Checkbox($active, "Account enabled", false)], 3), Row([Label("Tier"), Select($tier, ["bronze", "silver", "gold"], null, "Pick a tier")], 3)], 3)
+derived = Card([Text($name + " has " + $score + " points and is " + ($active ? "active" : "paused") + " on the " + $tier + " tier.", "md"), Caption("Lowercase: " + @Lower($name))], "soft", 3, 2)
+actions = Row([Button("Boost", Action([@Set($score, @Clamp($score + 10, 0, 100)), @Set($active, true)]), "solid"), Button("Rename", @Set($name, "Alex"), "outline"), Button("Reset all", @Reset(), "ghost", null, "sm", "rotate-ccw")], 2)

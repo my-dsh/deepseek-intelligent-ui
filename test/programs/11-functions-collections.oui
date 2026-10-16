@@ -1,0 +1,10 @@
+root = Col([head, grid], 4)
+$cart = ["apples", "bread", "cheese"]
+$rows = [{sku: "A1", qty: 2}, {sku: "B2", qty: 5}, {sku: "C3", qty: 1}]
+head = Row([Title("Collection functions", "lg"), Spacer(), Badge(@Count($cart) + " items", "info")], 2)
+grid = Grid([c1, c2, c3, c4, c5], 2, 200, 3)
+c1 = Card([Caption("Append Prepend Concat"), Text(@Join(@Append($cart, "dates"), ", "), "sm"), Text(@Join(@Prepend($cart, "eggs"), ", "), "sm"), Text(@Join(@Concat($cart, ["milk", "tea"]), ", "), "sm")], "soft", 3, 2)
+c2 = Card([Caption("Remove RemoveAt Update Toggle"), Text(@Join(@Remove($cart, "", "bread"), ", "), "sm"), Text(@Join(@RemoveAt($cart, 0), ", "), "sm"), Text(@Join(@Each(@Update($rows, "sku", "B2", "qty", 9), "r", r.sku + ":" + r.qty), ", "), "sm"), Text(@Join(@Toggle($cart, "bread"), ", "), "sm")], "soft", 3, 2)
+c3 = Card([Caption("Includes Find IndexOf"), Text(@Includes($cart, "bread") + " " + @Find($rows, "sku", "B2").qty + " " + @IndexOf($cart, "cheese"), "sm")], "soft", 3, 1)
+c4 = Card([Caption("Take Slice Unique Reverse"), Text(@Join(@Take($cart, 2), ", "), "sm"), Text(@Join(@Slice($cart, 1, 3), ", "), "sm"), Text(@Join(@Unique([1, 1, 2, 3, 3]), ", "), "sm"), Text(@Join(@Reverse($cart), ", "), "sm")], "soft", 3, 2)
+c5 = Card([Caption("Range Pick Shuffle Flatten Chunk"), Text(@Join(@Each(@Range(0, 5), "n", n + ""), ", "), "sm"), Text(@Pick(["red", "green", "blue"]) + " " + @Count(@Shuffle(@Range(0, 10))) + " " + @Join(@Flatten([[1, 2], [3, 4]]), ", ") + " " + @Count(@Chunk(@Range(0, 10), 3)), "sm")], "soft", 3, 2)

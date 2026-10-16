@@ -1,0 +1,11 @@
+root = Col([head, grid], 4)
+$values = [4, 8, 15, 16, 23, 42]
+$people = [{name: "Ada", age: 36}, {name: "Alan", age: 41}, {name: "Grace", age: 29}, {name: "Linus", age: 17}]
+head = Row([Title("Math and aggregate functions", "lg"), Spacer(), Badge("math", "info")], 2)
+grid = Grid([c1, c2, c3, c4, c5, c6], 3, 180, 3)
+c1 = Card([Caption("Count First Last Sum Avg"), Text(@Count($values) + " " + @First($values) + " " + @Last($values) + " " + @Sum($values) + " " + @Format(@Avg($values), "number", 2), "sm")], "soft", 3, 1)
+c2 = Card([Caption("Min Max Sort"), Text(@Min($values) + " " + @Max($values), "sm"), Caption(@Join(@Each(@Sort($people, "age", "desc"), "p", p.name), ", "))], "soft", 3, 2)
+c3 = Card([Caption("Filter"), Text(@Join(@Each(@Filter($people, "age", ">", 30), "p", p.name), ", "), "sm")], "soft", 3, 1)
+c4 = Card([Caption("Round Abs Floor Ceil"), Text(@Round(3.14159, 2) + " " + @Abs(-7) + " " + @Floor(2.9) + " " + @Ceil(2.1), "sm")], "soft", 3, 1)
+c5 = Card([Caption("Pow Sqrt Percent Lerp"), Text(@Pow(2, 10) + " " + @Sqrt(144) + " " + @Percent(3, 4) + " " + @Lerp(0, 100, 0.25), "sm")], "soft", 3, 1)
+c6 = Card([Caption("Clamp Random Convert Payment Allocate"), Text(@Clamp(150, 0, 100) + " " + @Random(1, 6, true) + " " + @Convert(10, "km", "mi") + " " + @Payment(200000, 0.045, 360) + " " + @Join(@Each(@Allocate(10, [1, 1, 2]), "n", n + ""), ","), "sm")], "soft", 3, 1)

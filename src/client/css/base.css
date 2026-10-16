@@ -1,0 +1,459 @@
+/*
+ * Intelligent UI — base stylesheet.
+ *
+ * Owned by client-shell. Surfaces, text, and borders use host `--dsw-alias-*`
+ * tokens only; the literal colours of the product (chart palette, soft status
+ * tints, shadows) live here, once, as `--iui-c-*` custom properties on
+ * `.iui-root`, with dark overrides (docs/INTERFACES.md §7).
+ *
+ * Class names:
+ *   iui-            row shell (header, body, notices, error box, skeleton)
+ *   iui-u-*         small utilities every component may reuse
+ *   iui-lt-*        components-a
+ *   iui-id-*        components-b
+ */
+
+/* --- artwork and data colours (the only literals in the client) ----------- */
+
+.iui-root {
+  --iui-c-brand-soft: #e8f0ff;
+  --iui-c-success-soft: #e7f6ec;
+  --iui-c-warn-soft: #fdf2e2;
+  --iui-c-error-soft: #fdeceb;
+  --iui-c-shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
+  --iui-c-shadow-lg: 0 8px 24px rgba(16, 24, 40, 0.12), 0 2px 6px rgba(16, 24, 40, 0.08);
+  --iui-c-chart1: #4f7df3;
+  --iui-c-chart2: #12a594;
+  --iui-c-chart3: #f2a63b;
+  --iui-c-chart4: #e5484d;
+  --iui-c-chart5: #8e5bf2;
+  --iui-c-chart6: #2f9bd6;
+  --iui-c-chart1-soft: #e8efff;
+  --iui-c-chart2-soft: #e2f5f1;
+  --iui-c-chart3-soft: #fdf1de;
+  --iui-c-chart4-soft: #fdeaea;
+  --iui-c-chart5-soft: #f0eafd;
+  --iui-c-chart6-soft: #e4f3fb;
+  --iui-c-purple-soft: #f0eafd;
+  --iui-c-pink-soft: #fdeaea;
+  /* Fixed artwork colours independent of the theme. */
+  --iui-c-on-art: #ffffff;
+  --iui-c-code-bg: #f4f5f7;
+  --iui-c-muted-line: #e3e6ea;
+}
+
+/*
+ * Dark overrides — all three paths set the SAME token list:
+ *
+ *   1. `body[data-ds-dark-theme]`  the host's own switch. The Harness Web GUI sets
+ *      this body attribute (its rules are `body { --dsw-alias-bg-base: …-00 }` and
+ *      `body[data-ds-dark-theme] { …-950 }`); it does NOT rely on
+ *      `prefers-color-scheme`, so without this selector our palette stayed light on
+ *      dark host surfaces.
+ *   2. `@media (prefers-color-scheme: dark)`  a host/user without the attribute.
+ *   3. `[data-theme='dark']`  explicit opt-in, and the plugin page's own theme hook.
+ *
+ * `.iui-root` above stays the light default, so an unmarked page is light.
+ * Keeping one shared token list in all three places is what guarantees no
+ * `--iui-c-*` value can be left at its light value in a dark context.
+ */
+@media (prefers-color-scheme: dark) {
+  .iui-root,
+  body[data-ds-dark-theme] .iui-root,
+  [data-theme='dark'] .iui-root {
+    --iui-c-brand-soft: #1b2740;
+    --iui-c-success-soft: #142c1e;
+    --iui-c-warn-soft: #33260f;
+    --iui-c-error-soft: #361a1b;
+    --iui-c-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+    --iui-c-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.35);
+    --iui-c-chart1: #7a9dfb;
+    --iui-c-chart2: #2bbfae;
+    --iui-c-chart3: #f6bb63;
+    --iui-c-chart4: #f06f73;
+    --iui-c-chart5: #ab86f7;
+    --iui-c-chart6: #5cb5e6;
+    --iui-c-chart1-soft: #1c2540;
+    --iui-c-chart2-soft: #122c2a;
+    --iui-c-chart3-soft: #32270f;
+    --iui-c-chart4-soft: #34191a;
+    --iui-c-chart5-soft: #271c40;
+    --iui-c-chart6-soft: #142a38;
+    --iui-c-purple-soft: #271c40;
+    --iui-c-pink-soft: #34191a;
+    --iui-c-code-bg: #20252d;
+    --iui-c-muted-line: #333a44;
+  }
+}
+
+body[data-ds-dark-theme] .iui-root,
+[data-theme='dark'] .iui-root {
+  --iui-c-brand-soft: #1b2740;
+  --iui-c-success-soft: #142c1e;
+  --iui-c-warn-soft: #33260f;
+  --iui-c-error-soft: #361a1b;
+  --iui-c-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --iui-c-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.35);
+  --iui-c-chart1: #7a9dfb;
+  --iui-c-chart2: #2bbfae;
+  --iui-c-chart3: #f6bb63;
+  --iui-c-chart4: #f06f73;
+  --iui-c-chart5: #ab86f7;
+  --iui-c-chart6: #5cb5e6;
+  --iui-c-chart1-soft: #1c2540;
+  --iui-c-chart2-soft: #122c2a;
+  --iui-c-chart3-soft: #32270f;
+  --iui-c-chart4-soft: #34191a;
+  --iui-c-chart5-soft: #271c40;
+  --iui-c-chart6-soft: #142a38;
+  --iui-c-purple-soft: #271c40;
+  --iui-c-pink-soft: #34191a;
+  --iui-c-code-bg: #20252d;
+  --iui-c-muted-line: #333a44;
+}
+
+/* Explicit light: the full light list, so `[data-theme='light']` beats the dark
+ * group above even when the OS or the host body attribute says dark. */
+[data-theme='light'] .iui-root {
+  --iui-c-brand-soft: #e8f0ff;
+  --iui-c-success-soft: #e7f6ec;
+  --iui-c-warn-soft: #fdf2e2;
+  --iui-c-error-soft: #fdeceb;
+  --iui-c-shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
+  --iui-c-shadow-lg: 0 8px 24px rgba(16, 24, 40, 0.12), 0 2px 6px rgba(16, 24, 40, 0.08);
+  --iui-c-chart1: #4f7df3;
+  --iui-c-chart2: #12a594;
+  --iui-c-chart3: #f2a63b;
+  --iui-c-chart4: #e5484d;
+  --iui-c-chart5: #8e5bf2;
+  --iui-c-chart6: #2f9bd6;
+  --iui-c-chart1-soft: #e8efff;
+  --iui-c-chart2-soft: #e2f5f1;
+  --iui-c-chart3-soft: #fdf1de;
+  --iui-c-chart4-soft: #fdeaea;
+  --iui-c-chart5-soft: #f0eafd;
+  --iui-c-chart6-soft: #e4f3fb;
+  --iui-c-purple-soft: #f0eafd;
+  --iui-c-pink-soft: #fdeaea;
+  --iui-c-code-bg: #f4f5f7;
+  --iui-c-muted-line: #e3e6ea;
+}
+
+/* --- row shell ----------------------------------------------------------- */
+
+.iui-root {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 4px 0 10px;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.55;
+  text-align: left;
+}
+
+.iui-root *,
+.iui-root *::before,
+.iui-root *::after {
+  box-sizing: border-box;
+}
+
+/* Button reset: font only. Colour is deliberately NOT inherited here — a
+   `color: inherit` on this selector (specificity 0,1,1) used to beat every
+   `.iui-btn-*` / `.iui-icon-btn-*` variant rule (0,1,0), so filled variants
+   rendered their label in the ambient text colour: black-on-black in the
+   light theme, white-on-white in the dark one. Every button class carries
+   its own `color`; the UA default only reaches a bare <button>. */
+.iui-root button {
+  font: inherit;
+}
+
+.iui-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 24px;
+  margin-bottom: 6px;
+}
+
+.iui-header-title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.iui-header-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+}
+
+.iui-root .iui-action {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 7px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 20px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.iui-root .iui-action:hover {
+  color: var(--dsw-alias-label-primary);
+  background: color-mix(in srgb, var(--dsw-alias-label-primary) 8%, transparent);
+}
+
+.iui-root .iui-action:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 1px;
+}
+
+.iui-body {
+  display: block;
+  min-width: 0;
+}
+
+/* --- notices, errors, skeleton ------------------------------------------- */
+
+.iui-notice {
+  display: block;
+  min-width: 0;
+  padding: 6px 10px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  background: var(--dsw-alias-bg-layer-1);
+  border: 0.5px solid var(--dsw-alias-border-l1);
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+
+.iui-notice + .iui-notice {
+  margin-top: 6px;
+}
+
+.iui-notice-title {
+  color: var(--dsw-alias-label-primary);
+  font-weight: 500;
+}
+
+.iui-notice-body {
+  margin-top: 2px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.iui-unknown {
+  color: var(--dsw-alias-state-warn-primary);
+  background: var(--iui-c-warn-soft);
+  border-color: var(--dsw-alias-border-l1);
+}
+
+.iui-truncated {
+  margin-top: 6px;
+}
+
+.iui-error {
+  display: block;
+  padding: 10px 12px;
+  background: var(--iui-c-error-soft);
+  border: 0.5px solid var(--dsw-alias-border-l1);
+  border-radius: 10px;
+}
+
+.iui-error-title {
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.iui-error-note {
+  margin-top: 4px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+
+.iui-error-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+
+.iui-preparing {
+  display: block;
+  padding: 4px 0;
+}
+
+.iui-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.iui-skeleton-bar {
+  height: 10px;
+  background: var(--dsw-alias-bg-layer-2);
+  border-radius: 5px;
+  animation: iui-pulse 1.4s ease-in-out infinite;
+}
+
+.iui-skeleton-bar-short {
+  width: 60%;
+}
+
+.iui-preparing-label {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+
+@keyframes iui-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iui-skeleton-bar {
+    animation: none;
+  }
+}
+
+/* --- utilities shared by components -------------------------------------- */
+
+.iui-u-hidden {
+  display: none;
+}
+
+.iui-u-row {
+  display: flex;
+  flex-direction: row;
+}
+
+.iui-u-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.iui-u-center {
+  align-items: center;
+  justify-content: center;
+}
+
+.iui-u-grow {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.iui-u-muted {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.iui-u-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.iui-u-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.iui-u-clamp-2 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.iui-u-clamp-3 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.iui-u-surface {
+  background: var(--dsw-alias-bg-layer-1);
+  border: 0.5px solid var(--dsw-alias-border-l1);
+  border-radius: 10px;
+}
+
+.iui-u-shadow {
+  box-shadow: var(--iui-c-shadow);
+}
+
+.iui-u-shadow-lg {
+  box-shadow: var(--iui-c-shadow-lg);
+}
+
+.iui-u-code {
+  padding: 1px 5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.92em;
+  background: var(--iui-c-code-bg);
+  border-radius: 5px;
+}
+
+.iui-u-divider {
+  height: 0.5px;
+  background: var(--dsw-alias-border-l1);
+}
+
+/* Spacing steps: 4px * n, matching `util.space(n)`. */
+.iui-u-gap-0 { gap: 0; }
+.iui-u-gap-1 { gap: 4px; }
+.iui-u-gap-2 { gap: 8px; }
+.iui-u-gap-3 { gap: 12px; }
+.iui-u-gap-4 { gap: 16px; }
+.iui-u-gap-5 { gap: 20px; }
+.iui-u-gap-6 { gap: 24px; }
+.iui-u-gap-8 { gap: 32px; }
+
+.iui-u-pad-0 { padding: 0; }
+.iui-u-pad-1 { padding: 4px; }
+.iui-u-pad-2 { padding: 8px; }
+.iui-u-pad-3 { padding: 12px; }
+.iui-u-pad-4 { padding: 16px; }
+.iui-u-pad-5 { padding: 20px; }
+.iui-u-pad-6 { padding: 24px; }
+
+/* Radius names: matching `util.radius(name)`. */
+.iui-u-radius-sm { border-radius: 6px; }
+.iui-u-radius-md { border-radius: 10px; }
+.iui-u-radius-lg { border-radius: 14px; }
+.iui-u-radius-xl { border-radius: 20px; }
+.iui-u-radius-full { border-radius: 9999px; }
+
+/* Colour names: matching `util.color(name)`. */
+.iui-u-color-brand { color: var(--dsw-alias-brand-primary); }
+.iui-u-color-text { color: var(--dsw-alias-label-primary); }
+.iui-u-color-idle { color: var(--dsw-alias-state-idle-primary); }
+.iui-u-color-success { color: var(--dsw-alias-state-success-primary); }
+.iui-u-color-warn { color: var(--dsw-alias-state-warn-primary); }
+.iui-u-color-error { color: var(--dsw-alias-state-error-primary); }
+
+.iui-u-bg-base { background: var(--dsw-alias-bg-base); }
+.iui-u-bg-layer1 { background: var(--dsw-alias-bg-layer-1); }
+.iui-u-bg-layer2 { background: var(--dsw-alias-bg-layer-2); }
+.iui-u-bg-overlay { background: var(--dsw-alias-bg-overlay); }
+
+.iui-u-border-l1 { border: 0.5px solid var(--dsw-alias-border-l1); }
+.iui-u-border-l2 { border: 0.5px solid var(--dsw-alias-border-l2); }
