@@ -4,6 +4,15 @@
   "type": "module",
   "description": "Intelligent UI for DeepSeek Harness: the model answers with an openui-lang program and the Web GUI renders it as a live, interactive UI inside the chat",
   "license": "MIT",
+  "author": "my-dsh",
+  "homepage": "https://github.com/my-dsh/deepseek-intelligent-ui#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/my-dsh/deepseek-intelligent-ui.git"
+  },
+  "bugs": {
+    "url": "https://github.com/my-dsh/deepseek-intelligent-ui/issues"
+  },
   "keywords": [
     "deepseek-harness",
     "dsh-plugin",
