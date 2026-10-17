@@ -107,12 +107,14 @@ jobs:
             echo "${name}@${version} is already on npm; skipping the publish"
           else
             npm publish --tag "$dist_tag"
-            # Registry reads can lag the publish by a moment; retry before failing.
+            # The registry can take minutes to process a new version before the
+            # dist-tag read reflects it, so wait long enough to tell a real failure
+            # (a dist-tag the registry refused to move) from ordinary propagation lag.
             published=""
-            for attempt in 1 2 3 4 5; do
+            for attempt in $(seq 1 30); do
               published="$(npm view "${name}" "dist-tags.${dist_tag}" 2>/dev/null || true)"
               if [ "$published" = "$version" ]; then break; fi
-              sleep 3
+              sleep 10
             done
             if [ "$published" != "$version" ]; then
               echo "::error::published ${name}@${version} but dist-tag ${dist_tag} points at ${published:-nothing}"
