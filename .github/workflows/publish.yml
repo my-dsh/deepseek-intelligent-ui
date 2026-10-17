@@ -1,0 +1,93 @@
+# Release: publish the tagged version to npm, then list it in the plugin market index.
+#
+# Publishing authenticates with OIDC (npm trusted publishing), so this repository
+# holds no npm token. One-time setup on npmjs.com — the package's Settings →
+# Trusted Publisher → GitHub Actions:
+#
+#   Organization        my-dsh
+#   Repository          deepseek-intelligent-ui
+#   Workflow filename   publish.yml        (file name only, no path)
+#   Allowed action      npm publish
+#
+# Then release with `npm version patch && git push --follow-tags`. See
+# docs/RELEASING.md.
+#
+# Requires npm >= 11.5.1 on a GitHub-hosted runner. The last step pushes the
+# regenerated index back to main, so Settings → Actions → General → Workflow
+# permissions must allow read and write.
+name: Publish
+
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  # `id-token: write` is the only credential: npm verifies this workflow's identity
+  # instead of reading a stored token. `contents: write` pushes the index commit.
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
+
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      - name: The tag must match package.json and point at main
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match the package.json version ${version}"
+            exit 1
+          fi
+          if [ "$(git rev-parse "v${version}^{commit}")" != "$(git rev-parse HEAD)" ]; then
+            echo "::error::v${version} does not point at the tip of main"
+            exit 1
+          fi
+
+      - name: Test
+        run: node --test
+
+      - name: client.js must match its sources
+        run: |
+          # Rebuild with the committed stamp so an unchanged tree stays byte-identical.
+          stamp="$(grep -o 'builtAt: "[^"]*"' client.js | head -1 | cut -d '"' -f2)"
+          IUI_BUILT_AT="$stamp" node scripts/build-client.mjs --strict
+          if ! git diff --exit-code -- client.js; then
+            echo "::error::client.js is stale — run node scripts/build-client.mjs --strict and commit the result"
+            exit 1
+          fi
+
+      - name: Publish to npm
+        run: npm publish
+
+      - name: List the release in the plugin market index
+        run: node scripts/update-market-index.mjs
+
+      - name: Commit the index
+        run: |
+          if git diff --quiet -- market/index.json; then
+            echo "market/index.json is already current"
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add market/index.json
+          git commit -m "market: list $(node -p "require('./package.json').name")@$(node -p "require('./package.json').version")"
+          git push origin HEAD:main

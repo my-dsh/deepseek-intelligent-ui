@@ -169,7 +169,7 @@ root = Col([Title("旧金山一日路线", "2xl"), Text(["全程 ", Text($days +
 node scripts/build-client.mjs --strict   # 由 src/** 生成 client.js，缺文件即失败
 node --check client.js                   # 产物语法
 node scripts/probe-client.mjs            # 在 Node 里真实执行产物：48/48 组件、73/73 函数、槽位注册
-node --test                              # 语言核心单元测试 + 语料/契约/清单 + README 示例守护（96 项）
+node --test                              # 语言核心单元测试 + 语料/契约/清单 + README 示例守护（104 项）
 ```
 
 构建脚本是唯一的"编译"步骤：它按固定阶段顺序把 `src/lang/**` 与 `src/client/**` 拼进一个
@@ -178,6 +178,10 @@ node --test                              # 语言核心单元测试 + 语料/契
 
 调试时页面控制台可读 `window.__DSH_INTELLIGENT_UI__`：已注册组件/函数数量、当前行的 `$state` 存储、
 以及 `parseProgram` / `evaluateProgram`，可以直接在里面试一段程序。
+
+发布交给 CI：推 `vX.Y.Z` tag 后会跑测试、用提交里的时间戳重建 `client.js` 以确认产物与 `src/**` 一致、
+通过 **OIDC 发布到 npm（仓库里不放任何 token）**，再把新版本写进插件市场索引并提交回 main。
+一次性配置步骤与排错见 [docs/RELEASING.md](docs/RELEASING.md)。
 
 ## 验证状态
 
