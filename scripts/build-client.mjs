@@ -24,7 +24,10 @@ import { dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const PACKAGE_NAME = 'dsh-intelligent-ui'
+/** Bundle identity, read from the manifest so name and version cannot drift from it. */
+const MANIFEST = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
+const PACKAGE_NAME = MANIFEST.name
+const PACKAGE_VERSION = MANIFEST.version
 const OUT = join(ROOT, 'client.js')
 const STRICT = process.argv.includes('--strict')
 
@@ -188,7 +191,7 @@ window.__ModuleLoader__.load({
   factory(require) {
     const React = require('react')
     const h = React.createElement
-    const IUI_BUILD = { version: ${JSON.stringify('1.0.0')}, builtAt: ${JSON.stringify(builtAt)}, fragments: ${JSON.stringify(fragments.map(fragment => fragment.file))} }
+    const IUI_BUILD = { version: ${JSON.stringify(PACKAGE_VERSION)}, builtAt: ${JSON.stringify(builtAt)}, fragments: ${JSON.stringify(fragments.map(fragment => fragment.file))} }
     const IUI_CSS = ${JSON.stringify(css)}
 ${body}
     return { inject: IUI.inject, apply: ctx => IUI.apply(ctx) }
