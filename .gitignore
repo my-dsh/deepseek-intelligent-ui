@@ -5,5 +5,8 @@ node_modules/
 *.log
 .DS_Store
 
+# plugin market generator cache (regenerated, never published)
+market/.cache/
+
 # NOTE: client.js is the built browser artifact and IS committed on purpose:
 # the plugin installs straight from a git clone with no build step.

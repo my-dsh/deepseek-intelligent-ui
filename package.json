@@ -2,6 +2,9 @@
   "name": "dsh-intelligent-ui",
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "dsh": ">=0.2.1-alpha.4"
+  },
   "description": "Intelligent UI for DeepSeek Harness: the model answers with an openui-lang program and the Web GUI renders it as a live, interactive UI inside the chat",
   "license": "MIT",
   "author": "my-dsh",

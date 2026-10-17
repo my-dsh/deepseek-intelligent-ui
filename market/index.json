@@ -1,0 +1,45 @@
+{
+  "format": 1,
+  "title": "my-dsh plugins",
+  "description": "DeepSeek Harness plugins published by my-dsh",
+  "plugins": [
+    {
+      "name": "dsh-intelligent-ui",
+      "title": {
+        "en": "Intelligent UI",
+        "zh": "智能 UI"
+      },
+      "description": {
+        "en": "Answers arrive as a live interface: the model writes an openui-lang program and the chat renders editable lists, sliders, tables, charts and drawings you can work in.",
+        "zh": "回答直接变成可交互界面：模型写出 openui-lang 程序，聊天区把它渲染成可编辑列表、滑块、表格、图表和绘图，可以边看边操作。"
+      },
+      "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByb2xlPSJpbWciIGFyaWEtbGFiZWw9IkludGVsbGlnZW50IFVJIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iaXVpLWciIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjNGY3Y2Y3Ii8+CiAgICAgIDxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzdiNWJmMCIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHJlY3QgeD0iNCIgeT0iNCIgd2lkdGg9IjU2IiBoZWlnaHQ9IjU2IiByeD0iMTQiIGZpbGw9InVybCgjaXVpLWcpIi8+CiAgPHJlY3QgeD0iMTMiIHk9IjE0IiB3aWR0aD0iMjEiIGhlaWdodD0iNyIgcng9IjMuNSIgZmlsbD0iI2ZmZmZmZiIgb3BhY2l0eT0iMC45NSIvPgogIDxyZWN0IHg9IjEzIiB5PSIyNiIgd2lkdGg9IjM0IiBoZWlnaHQ9IjUiIHJ4PSIyLjUiIGZpbGw9IiNmZmZmZmYiIG9wYWNpdHk9IjAuNjIiLz4KICA8cmVjdCB4PSIxMyIgeT0iMzUiIHdpZHRoPSIyNiIgaGVpZ2h0PSI1IiByeD0iMi41IiBmaWxsPSIjZmZmZmZmIiBvcGFjaXR5PSIwLjYyIi8+CiAgPHJlY3QgeD0iMTMiIHk9IjQ0IiB3aWR0aD0iMTMiIGhlaWdodD0iNSIgcng9IjIuNSIgZmlsbD0iI2ZmZmZmZiIgb3BhY2l0eT0iMC40MiIvPgogIDxjaXJjbGUgY3g9IjQ2IiBjeT0iNDUiIHI9IjEwIiBmaWxsPSIjZmZmZmZmIi8+CiAgPHBhdGggZD0iTTQ2IDM4LjZsMS45IDQuMyA0LjMgMS45LTQuMyAxLjktMS45IDQuMy0xLjktNC4zLTQuMy0xLjkgNC4zLTEuOXoiIGZpbGw9IiM1YTYzZjIiLz4KPC9zdmc+Cg==",
+      "author": "my-dsh",
+      "homepage": "https://github.com/my-dsh/deepseek-intelligent-ui#readme",
+      "repository": {
+        "url": "https://github.com/my-dsh/deepseek-intelligent-ui"
+      },
+      "metadata": {
+        "keywords": [
+          "deepseek-harness",
+          "dsh-plugin",
+          "dsh-bundle",
+          "openui",
+          "generative-ui",
+          "intelligent-ui"
+        ]
+      },
+      "versions": [
+        {
+          "version": "1.0.0",
+          "publishTimestamp": 1792161402,
+          "source": {
+            "type": "git",
+            "url": "https://github.com/my-dsh/deepseek-intelligent-ui",
+            "commit": "5a196385afc190bc5963af7cfe19e814f2849d39"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+# Plugin market source list for https://my-dsh.github.io/deepseek-intelligent-ui/market/index.json
+# Regenerate from a DeepSeek Harness checkout:
+#   pnpm --filter @deepseek-ai/dsh-plugin-market-generator start \
+#     --input market/plugins.txt --output market/index.json --title "my-dsh plugins"
+https://github.com/my-dsh/deepseek-intelligent-ui
