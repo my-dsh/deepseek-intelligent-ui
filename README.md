@@ -18,7 +18,29 @@
 
 需要 DeepSeek Harness（带 `plugin_manager`；Creator 预设默认启用该工具，Web 侧栏的**插件**页也可以安装外部 bundle）。
 
-### 从 GitHub 安装（推荐）
+### 方式一：从 npm 安装（推荐）
+
+已发布到 npm：<https://www.npmjs.com/package/@my-dsh/dsh-intelligent-ui>
+
+```text
+plugin_manager(action="install_bundle", target="@my-dsh/dsh-intelligent-ui")
+```
+
+- 包名**必须带 `@my-dsh/` scope**：npm 上裸名 `dsh-intelligent-ui` 已被另一个同名插件占用，用裸名安装会装到别人的包。
+- 国内不需要额外配置：pnpm 走你已配置的 registry（npmmirror 已同步本包）。
+- 仓库自带构建产物 `client.js`，安装即用，不需要构建步骤。
+
+### 方式二：从插件市场安装
+
+在 Web 侧栏的**插件**页启用实验性的「自定义插件市场」，添加索引源：
+
+```text
+https://my-dsh.github.io/deepseek-intelligent-ui/market/index.json
+```
+
+索引里只有本插件，安装同样解析到 npm 上的版本。
+
+### 方式三：从 GitHub 安装
 
 仓库自带构建产物 `client.js`，**无需预先构建**。安装 spec 任选一种等价写法：
 
@@ -33,34 +55,16 @@ https://github.com/my-dsh/deepseek-intelligent-ui.git
 plugin_manager(action="install_bundle", target="github:my-dsh/deepseek-intelligent-ui")
 ```
 
-管理器会先用 `git ls-remote` 探测仓库可达性，再交给 pnpm 安装。安装后 profile 的
-`cordis.patch.yml` 会多出一行：
+管理器会先用 `git ls-remote` 探测仓库可达性，再交给 pnpm 安装。
+
+### 安装后
+
+profile 的 `cordis.patch.yml` 会多出一行：
 
 ```yaml
 - id: intelligent-ui
   name: '@my-dsh/dsh-intelligent-ui'
 ```
-
-### 从 npm 安装
-
-已发布到 npm：<https://www.npmjs.com/package/@my-dsh/dsh-intelligent-ui>
-
-```text
-plugin_manager(action="install_bundle", target="@my-dsh/dsh-intelligent-ui")
-```
-
-包名必须带 `@my-dsh/` scope：npm 上裸名 `dsh-intelligent-ui` 已被另一个同名插件占用，
-用裸名安装会装到别人的包。
-
-### 本地开发安装
-
-```bash
-git clone https://github.com/my-dsh/deepseek-intelligent-ui.git
-cd deepseek-intelligent-ui
-node scripts/build-client.mjs --strict   # 改动 src/** 后必须重新生成 client.js
-```
-
-然后以**目录**为目标执行 `install_bundle`（绝对路径），或在 profile 的 `package.json` 里把它列进 `dsh.profile.bundles`。
 
 可在该行下加 `config` 调整行为（本插件不导出 `Config` schema，因此不做校验）：
 
@@ -72,6 +76,16 @@ node scripts/build-client.mjs --strict   # 改动 src/** 后必须重新生成 c
     maxProgramBytes: 60000
     maxDiagnostics: 24
 ```
+
+### 本地开发安装
+
+```bash
+git clone https://github.com/my-dsh/deepseek-intelligent-ui.git
+cd deepseek-intelligent-ui
+node scripts/build-client.mjs --strict   # 改动 src/** 后必须重新生成 client.js
+```
+
+然后以**目录**为目标执行 `install_bundle`（绝对路径），或在 profile 的 `package.json` 里把它列进 `dsh.profile.bundles`。
 
 ## 使用
 
@@ -203,7 +217,7 @@ node --test                              # 语言核心单元测试 + 语料/契
 | 深色主题 | 宿主的暗色由 `body[data-ds-dark-theme]` 切换（不是 `prefers-color-scheme`）；加上该选择器后，我们的 22 个 `--iui-c-*` 全部跟随切换（chart1 `#4f7df3→#7a9dfb`、brand-soft `#e8f0ff→#1b2740`、shadow 换深色），Badge 文本对比度 `1.10:1 → 14.24:1`（WCAG AA 需 4.5） |
 | 移动端窄屏 | 390×844 模拟下：界面宽 263px、无横向溢出，表格与图表按宽度收缩，页面无横向滚动 |
 | 控制台 | 本插件无报错；页面里唯一的 404 来自随 dsh 发布的 `ui-open-in-app` 插件，与本插件无关 |
-| 浏览器外 | `node --test` 96 项全绿（含 README 示例守护）、`probe-client` PASS（48/48 组件、73/73 函数）、真实 React 18 SSR 渲染 0 warning 与 0 key 警告 |
+| 浏览器外 | `node --test` 106 项全绿（含 README 示例守护）、`probe-client` PASS（48/48 组件、73/73 函数）、真实 React 18 SSR 渲染 0 warning 与 0 key 警告 |
 
 ## 当前的边界（v1）
 
@@ -213,6 +227,10 @@ node --test                              # 语言核心单元测试 + 语料/契
 - 界面在工具调用参数完整后出现（`start` 阶段），不是逐字流式；参数未到时显示骨架。
 - 单个界面最多渲染 400 个组件节点、20 层嵌套，超出部分显示提示，避免失控程序卡住聊天。
 - 不导出 `Config` schema：可调项通过 `cordis.patch.yml` 的行 `config` 传入，不做界面校验。
+
+## 致谢
+
+感谢 [Linux.do](https://linux.do) 社区对本项目的推广。
 
 ## 许可
 
