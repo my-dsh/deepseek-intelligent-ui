@@ -4,7 +4,7 @@
   "description": "DeepSeek Harness plugins published by my-dsh",
   "plugins": [
     {
-      "name": "dsh-intelligent-ui",
+      "name": "@my-dsh/dsh-intelligent-ui",
       "title": {
         "en": "Intelligent UI",
         "zh": "智能 UI"
@@ -31,24 +31,15 @@
       },
       "versions": [
         {
-          "version": "1.0.1",
-          "publishTimestamp": 1792202853,
+          "version": "1.0.2",
+          "publishTimestamp": 1792204672,
           "source": {
             "type": "git",
             "url": "https://github.com/my-dsh/deepseek-intelligent-ui",
-            "commit": "2da7835ea9e2ddfdeb004cd69a5f7d52d71b2abe"
+            "commit": "136372fa54947eee7d864692a8c2ad0505cda869"
           },
           "engines": {
             "dsh": ">=0.2.1-alpha.4"
-          }
-        },
-        {
-          "version": "1.0.0",
-          "publishTimestamp": 1792161402,
-          "source": {
-            "type": "git",
-            "url": "https://github.com/my-dsh/deepseek-intelligent-ui",
-            "commit": "5a196385afc190bc5963af7cfe19e814f2849d39"
           }
         }
       ]
