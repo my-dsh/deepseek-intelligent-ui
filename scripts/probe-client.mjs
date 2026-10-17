@@ -17,7 +17,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const EXPECTED_MODULE_ID = 'dsh-intelligent-ui'
+const EXPECTED_MODULE_ID = '@my-dsh/dsh-intelligent-ui'
 const EXPECTED_SLOT = 'tool.call.toolview'
 const EXPECTED_KEY = 'intelligent_ui'
 

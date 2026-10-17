@@ -6,7 +6,7 @@
  * Nothing here may read a `const` from another fragment: only declarations this
  * file makes are safe to touch at evaluation time (docs/INTERFACES.md §4).
  *
- * @module dsh-intelligent-ui/client/namespace
+ * @module @my-dsh/dsh-intelligent-ui/client/namespace
  */
 
 /** Plugin service dependencies; the build emits `return { inject: IUI.inject, ... }`. */

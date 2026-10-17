@@ -288,7 +288,7 @@ Snapshot: 2026-10-16T07:27:51Z, `client.js` md5 `f8ed1cd9ed90228f75e6e7bea61aa54
 ```
 $ node scripts/probe-client.mjs
 ok   client.js registers a __ModuleLoader__ handoff
-ok   module id matches the package name — dsh-intelligent-ui
+ok   module id matches the package name — @my-dsh/dsh-intelligent-ui
 ok   factory returns a plugin with apply()
 ok   plugin.inject declares slots + locale — ["slots","locale"]
 ok   registers a toolview for key "intelligent_ui"

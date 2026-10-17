@@ -6,7 +6,7 @@
  * frozen `IUI.apply` slot. Both registrations are effects, so unloading the
  * plugin removes them (docs/INTERFACES.md §4, §6.6).
  *
- * @module dsh-intelligent-ui/client/apply
+ * @module @my-dsh/dsh-intelligent-ui/client/apply
  */
 
 /** Locale namespace of the row's copy (docs/INTERFACES.md §2). */

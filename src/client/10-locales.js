@@ -5,7 +5,7 @@
  * both `en` and `zh`, and components may use no others. `90-apply.js` registers
  * this dictionary with `ctx.locale.register('intelligent-ui', { en, zh })`.
  *
- * @module dsh-intelligent-ui/client/locales
+ * @module @my-dsh/dsh-intelligent-ui/client/locales
  */
 
 /** English dictionary of the `intelligent-ui` namespace. */

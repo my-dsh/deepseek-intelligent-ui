@@ -29,7 +29,7 @@ Client: tool.call.toolview[key=intelligent_ui] reads block.call.argsRaw
 
 | Thing | Value |
 | --- | --- |
-| Package name / bundle row id / client module id | `dsh-intelligent-ui` |
+| Package name / bundle row id / client module id | `@my-dsh/dsh-intelligent-ui` |
 | Host entry | `index.js` |
 | Client entry (generated, committed) | `client.js` |
 | Tool wire name | `intelligent_ui` |
@@ -80,7 +80,7 @@ Emitted shape:
 
 ```js
 window.__ModuleLoader__.load({
-  id: 'dsh-intelligent-ui',
+  id: '@my-dsh/dsh-intelligent-ui',
   factory(require) {
     const React = require('react')
     const h = React.createElement

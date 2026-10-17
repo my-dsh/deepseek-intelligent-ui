@@ -9,7 +9,7 @@
  * components every program still renders (as unknown-component notices) instead
  * of blanking the chat.
  *
- * @module dsh-intelligent-ui/client/render
+ * @module @my-dsh/dsh-intelligent-ui/client/render
  */
 
 /** Maximum component nodes rendered per row (docs/INTERFACES.md §7). */

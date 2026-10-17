@@ -1,3 +1,3 @@
 - insert:
     - id: intelligent-ui
-      name: 'dsh-intelligent-ui'
+      name: '@my-dsh/dsh-intelligent-ui'

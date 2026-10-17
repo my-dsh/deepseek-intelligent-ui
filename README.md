@@ -38,7 +38,7 @@ plugin_manager(action="install_bundle", target="github:my-dsh/deepseek-intellige
 
 ```yaml
 - id: intelligent-ui
-  name: 'dsh-intelligent-ui'
+  name: '@my-dsh/dsh-intelligent-ui'
 ```
 
 ### 本地开发安装
@@ -55,7 +55,7 @@ node scripts/build-client.mjs --strict   # 改动 src/** 后必须重新生成 c
 
 ```yaml
 - id: intelligent-ui
-  name: 'dsh-intelligent-ui'
+  name: '@my-dsh/dsh-intelligent-ui'
   config:
     prompt: true          # 是否在系统提示里教这套语言，默认 true
     maxProgramBytes: 60000

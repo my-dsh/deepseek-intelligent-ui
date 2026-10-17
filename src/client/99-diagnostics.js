@@ -5,7 +5,7 @@
  * diagnostic counts and read-only entry points, never a mutation API. This
  * fragment runs last, so every name it reads is already initialized.
  *
- * @module dsh-intelligent-ui/client/diagnostics
+ * @module @my-dsh/dsh-intelligent-ui/client/diagnostics
  */
 
 /** Read-only view of the locale dictionaries registered by `90-apply.js`. */

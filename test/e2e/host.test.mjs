@@ -190,6 +190,6 @@ describe('host half contract (Phase A, §8)', () => {
     }
     // the YAML patch must reference the package by its real name (§2)
     const patch = readFileSync(path.join(REPO_ROOT, 'cordis.patch.yml'), 'utf8')
-    assert.match(patch, /dsh-intelligent-ui/, 'cordis.patch.yml must insert the bundle by package name')
+    assert.match(patch, /@my-dsh\/dsh-intelligent-ui/, 'cordis.patch.yml must insert the bundle by package name')
   })
 })

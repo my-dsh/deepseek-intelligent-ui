@@ -19,7 +19,7 @@
  *   config: { prompt: false, maxProgramBytes: 60000, maxDiagnostics: 24 }
  * ```
  *
- * @module dsh-intelligent-ui
+ * @module @my-dsh/dsh-intelligent-ui
  */
 import {
   COMPONENT_SIGNATURES,

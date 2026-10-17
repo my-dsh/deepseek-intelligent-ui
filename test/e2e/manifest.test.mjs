@@ -13,7 +13,7 @@ const pkg = JSON.parse(read('package.json'))
 
 describe('plugin manifest and built artifact (Phase B static)', () => {
   test('§2 package identity: name, exports and dsh bundle/client manifest', () => {
-    assert.equal(pkg.name, 'dsh-intelligent-ui', 'package name must be dsh-intelligent-ui')
+    assert.equal(pkg.name, '@my-dsh/dsh-intelligent-ui', 'package name must be @my-dsh/dsh-intelligent-ui')
     assert.ok(pkg.exports && typeof pkg.exports === 'object', 'package.json must declare exports')
 
     // every exports target must resolve to a real file
@@ -41,7 +41,7 @@ describe('plugin manifest and built artifact (Phase B static)', () => {
     assert.equal(typeof patch, 'string', 'dsh.bundle.patch must be a string (§2/§9.3)')
     assert.ok(exists(patch.slice(2)), `dsh.bundle.patch ${patch} does not exist`)
     const patchText = read(patch.slice(2))
-    assert.match(patchText, /dsh-intelligent-ui/, 'cordis.patch.yml must insert the bundle by package name')
+    assert.match(patchText, /@my-dsh\/dsh-intelligent-ui/, 'cordis.patch.yml must insert the bundle by package name')
     assert.match(patchText, /insert:/, 'cordis.patch.yml must be an insert patch')
 
     // dsh client
@@ -85,7 +85,7 @@ describe('plugin manifest and built artifact (Phase B static)', () => {
     const bundle = read('client.js')
     assert.ok(exists('client.js'), 'client.js must exist')
     assert.equal((bundle.match(/window\.__ModuleLoader__\.load\(/g) ?? []).length, 1, 'client.js must contain exactly one module handoff')
-    assert.ok(bundle.includes('"dsh-intelligent-ui"') || bundle.includes("'dsh-intelligent-ui'"), 'client.js must carry the package module id')
+    assert.ok(bundle.includes('"@my-dsh/dsh-intelligent-ui"') || bundle.includes("'@my-dsh/dsh-intelligent-ui'"), 'client.js must carry the package module id')
     assert.ok(!/^\s*import\s/m.test(bundle), 'the bundle must not contain leftover import statements')
     assert.ok(bundle.includes('IUI_CSS'), 'client.js must carry the concatenated stylesheet constant')
 

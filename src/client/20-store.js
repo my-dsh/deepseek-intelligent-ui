@@ -9,7 +9,7 @@
  * `reset`, `subscribe`, `size`. Lifetime is owned by the React row, which holds
  * it in a ref; `IUI.stores` is a debug index only, never a second owner.
  *
- * @module dsh-intelligent-ui/client/store
+ * @module @my-dsh/dsh-intelligent-ui/client/store
  */
 
 /** Maximum state entries one store keeps from a runaway program. */
