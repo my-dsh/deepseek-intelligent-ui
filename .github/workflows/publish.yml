@@ -12,6 +12,9 @@
 # Then release with `npm version patch && git push --follow-tags`. See
 # docs/RELEASING.md.
 #
+# The tagged tree is what gets published; the market index is committed on main,
+# which moves past every release. A failed run can therefore simply be re-run.
+#
 # Requires npm >= 11.5.1 on a GitHub-hosted runner. The `contents: write` below is
 # what lets the last step push the regenerated index back to main: a workflow's
 # `permissions` key overrides the repository's default workflow permissions, so no
@@ -38,7 +41,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: main
+          # The tagged tree is what gets published — never the tip of main.
+          ref: ${{ github.ref_name }}
           fetch-depth: 0
 
       - uses: actions/setup-node@v7
@@ -50,15 +54,18 @@ jobs:
       - name: Update npm
         run: npm install -g npm@latest
 
-      - name: The tag must match package.json and point at main
+      - name: The tag must match package.json and sit on the main line
         run: |
           version="$(node -p "require('./package.json').version")"
           if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
             echo "::error::tag ${GITHUB_REF_NAME} does not match the package.json version ${version}"
             exit 1
           fi
-          if [ "$(git rev-parse "v${version}^{commit}")" != "$(git rev-parse HEAD)" ]; then
-            echo "::error::v${version} does not point at the tip of main"
+          # The index is committed on main, so main moves past every release; the tag
+          # only has to be on the main line, and main is fetched for the index step.
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "::error::${GITHUB_REF_NAME} is not an ancestor of main"
             exit 1
           fi
 
@@ -88,16 +95,22 @@ jobs:
           fi
 
       - name: List the release in the plugin market index
-        run: node scripts/update-market-index.mjs
-
-      - name: Commit the index
         run: |
+          version="${GITHUB_REF_NAME#v}"
+          name="$(node -p "require('./package.json').name")"
+          # The index lives on main, which has moved past this tag, so the entry goes
+          # into main's copy while the release itself stays exactly what the tag holds.
+          # The updater is taken from the tag rather than from main, so a release is
+          # updated by the very tooling it tested and ships.
+          git checkout -B market-index origin/main
+          git show "${GITHUB_REF_NAME}:scripts/update-market-index.mjs" > scripts/update-market-index.mjs
+          node scripts/update-market-index.mjs "$version"
           if git diff --quiet -- market/index.json; then
-            echo "market/index.json is already current"
+            echo "market/index.json already lists ${name}@${version}"
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add market/index.json
-          git commit -m "market: list $(node -p "require('./package.json').name")@$(node -p "require('./package.json').version")"
+          git commit -m "market: list ${name}@${version}"
           git push origin HEAD:main

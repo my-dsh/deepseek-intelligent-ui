@@ -11,5 +11,8 @@ market/.cache/
 # local npm cache used by publish/pack runs
 .npm-cache/
 
+# local gh cache used to read workflow logs
+.gh-cache/
+
 # NOTE: client.js is the built browser artifact and IS committed on purpose:
 # the plugin installs straight from a git clone with no build step.

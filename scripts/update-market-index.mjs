@@ -13,10 +13,12 @@
  * entry is `{ type: 'npm' }` and install resolves against whichever registry the
  * user configured.
  *
- * Usage: node scripts/update-market-index.mjs
- *   Reads the package name, version and `engines.dsh` from package.json, asks
- *   the registry when that version was published, and rewrites market/index.json
- *   only when the result differs.
+ * Usage: node scripts/update-market-index.mjs [version]
+ *   Reads the package name and `engines.dsh` from package.json and lists `version`
+ *   (default: the manifest's own version), asking the registry when that version was
+ *   published. Rewrites market/index.json only when the result differs. The explicit
+ *   version matters in CI, where the index is updated on a checkout of main whose
+ *   package.json may already name the next release.
  */
 import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
@@ -140,18 +142,42 @@ export async function publishedAt(name, version, { attempts = 12, delayMs = 10_0
   return Math.floor(Date.now() / 1000)
 }
 
+/** Whether the index already lists `name@version`. */
+export function listsVersion(index, name, version) {
+  const plugin = index?.plugins?.find((entry) => entry?.name === name)
+  return plugin?.versions?.some((entry) => entry?.version === version) === true
+}
+
+/** Version to list: an explicit argument when given, otherwise the manifest's own. */
+export function requestedVersion(manifest, argument) {
+  const version = argument ?? manifest?.version
+  if (typeof version !== 'string' || SEMVER.exec(version) === null) {
+    throw new Error(`expected an exact SemVer version to list, got ${JSON.stringify(version)}`)
+  }
+  return version
+}
+
 /** Rewrite `market/index.json` for the version in `package.json`. */
 async function main() {
   const manifest = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
+  const version = requestedVersion(manifest, process.argv[2])
   const before = readFileSync(INDEX_FILE, 'utf8')
-  const entry = marketVersionEntry(manifest.version, await publishedAt(manifest.name, manifest.version), indexEngines(manifest))
-  const after = `${JSON.stringify(withMarketVersion(JSON.parse(before), manifest.name, entry), null, 2)}\n`
+  const index = JSON.parse(before)
+  // The registry refines a version's publish time for a while after the upload, so
+  // re-reading it would rewrite an entry that is already correct. Once listed, the
+  // version stays exactly as recorded and a re-run becomes a no-op.
+  if (listsVersion(index, manifest.name, version)) {
+    console.log(`update-market-index: ${manifest.name}@${version} is already listed`)
+    return
+  }
+  const entry = marketVersionEntry(version, await publishedAt(manifest.name, version), indexEngines(manifest))
+  const after = `${JSON.stringify(withMarketVersion(index, manifest.name, entry), null, 2)}\n`
   if (after === before) {
-    console.log(`update-market-index: ${manifest.name}@${manifest.version} is already listed`)
+    console.log(`update-market-index: ${manifest.name}@${version} is already listed`)
     return
   }
   writeFileSync(INDEX_FILE, after)
-  console.log(`update-market-index: listed ${manifest.name}@${manifest.version} (published ${entry.publishTimestamp})`)
+  console.log(`update-market-index: listed ${manifest.name}@${version} (published ${entry.publishTimestamp})`)
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {

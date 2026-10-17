@@ -44,8 +44,9 @@ npm version patch        # or minor / major: bumps, commits and tags
 git push --follow-tags   # pushes main and the tag
 ```
 
-The tag must equal `v<package.json version>` and point at the tip of main; the
-workflow refuses anything else.
+The tag must equal `v<package.json version>` and sit on the main line — an ancestor
+of main. Everything the run publishes is the tree the tag points at, never the tip
+of main, and the workflow refuses anything else.
 
 The workflow then:
 
@@ -58,10 +59,16 @@ The workflow then:
    (verify with `npm audit signatures`, or `npm view @my-dsh/dsh-intelligent-ui dist.attestations`);
    a version that is already on the registry is skipped, so re-running a release
    that failed later still reaches the index step;
-4. runs `scripts/update-market-index.mjs`, which asks the registry when the version
-   was published and adds `{ version, publishTimestamp, source: { type: 'npm' } }`
-   to `market/index.json`;
-5. commits that file and pushes it to main, which redeploys GitHub Pages.
+4. checks out main and adds the version to `market/index.json` there with
+   `scripts/update-market-index.mjs <version>` — the script asks the registry when
+   the version was published and writes `{ version, publishTimestamp, source: { type: 'npm' } }`.
+   A version already listed is left exactly as recorded, because the registry keeps
+   refining that timestamp for a while; re-running a release therefore changes
+   nothing at all;
+5. commits that file to main, which redeploys GitHub Pages.
+
+Because the index lands on main and not on the tag, main is one commit ahead after
+every release, and a run that fails can be re-run at any later time.
 
 Discover then offers the new version once Pages finishes deploying.
 
@@ -88,7 +95,7 @@ checkout.
 | Symptom | Cause |
 |---|---|
 | `tag vX.Y.Z does not match the package.json version` | the tag was not created by `npm version` |
-| `does not point at the tip of main` | the tag sits on an older commit; push main first |
+| `is not an ancestor of main` | the tag sits on a branch that never reached main |
 | `client.js is stale` | run `node scripts/build-client.mjs --strict` and commit the artifact |
 | `npm publish` fails with an OIDC or 404 error | the trusted publisher is missing, or its workflow filename differs from `publish.yml` |
 | the index commit is rejected | an organization policy pins read-only workflow permissions, or main is protected |

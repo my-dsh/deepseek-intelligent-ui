@@ -7,7 +7,9 @@ import { test, describe } from 'node:test'
 import {
   compareVersions,
   indexEngines,
+  listsVersion,
   marketVersionEntry,
+  requestedVersion,
   withMarketVersion,
 } from '../scripts/update-market-index.mjs'
 
@@ -66,6 +68,13 @@ describe('market index updater (release tooling)', () => {
     assert.equal(twice.plugins[0].versions.find((entry) => entry.version === '1.0.3').publishTimestamp, 200)
   })
 
+  test('a listed version is detectable, so the CLI leaves it exactly as recorded', () => {
+    assert.equal(listsVersion(INDEX, NAME, '1.0.2'), true)
+    assert.equal(listsVersion(INDEX, NAME, '1.0.3'), false)
+    assert.equal(listsVersion(INDEX, 'other-plugin', '1.0.2'), false)
+    assert.equal(listsVersion({}, NAME, '1.0.2'), false)
+  })
+
   test('prereleases sort below their release', () => {
     assert.ok(compareVersions('1.0.0-alpha.2', '1.0.0-alpha.10') < 0)
     assert.ok(compareVersions('1.0.0-alpha', '1.0.0') < 0)
@@ -76,6 +85,13 @@ describe('market index updater (release tooling)', () => {
   test('an unknown plugin is an error rather than a silent no-op', () => {
     assert.throws(() => withMarketVersion(INDEX, 'other-plugin', marketVersionEntry('1.0.3', 1)), /lists no plugin named/)
     assert.throws(() => withMarketVersion({}, NAME, marketVersionEntry('1.0.3', 1)), /plugins array/)
+  })
+
+  test('an explicit version wins over the manifest, and either must be exact', () => {
+    assert.equal(requestedVersion({ version: '2.0.0' }, '1.0.3'), '1.0.3')
+    assert.equal(requestedVersion({ version: '2.0.0' }), '2.0.0')
+    assert.throws(() => requestedVersion({ version: '2.0.0' }, 'v1.0.3'), /exact SemVer/)
+    assert.throws(() => requestedVersion({}, undefined), /exact SemVer/)
   })
 
   test('engine floors come from the manifest and may be absent', () => {
