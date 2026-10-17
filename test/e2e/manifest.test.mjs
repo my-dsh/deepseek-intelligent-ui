@@ -149,4 +149,31 @@ describe('plugin manifest and built artifact (Phase B static)', () => {
     assert.ok(!/position:\s*fixed/.test(css), '§7: the row must not use position:fixed')
     t.diagnostic('[css] §7 static styling checks: no --dsw-* definitions, no dark overrides of host tokens, no literals outside --iui-c-*')
   })
+
+  test('§9.4 install-time manifest: publishConfig, engines gate, client flags, locale exports', () => {
+    // Publishing shape: the release workflow cannot choose these, the manifest must.
+    assert.equal(pkg.publishConfig?.access, 'public', 'publishConfig.access must stay public')
+    assert.equal(pkg.publishConfig?.registry, 'https://registry.npmjs.org/', 'publishConfig must pin the official registry')
+    assert.equal(pkg.type, 'module', 'the host half is ESM')
+
+    // engines.dsh is the install-time compatibility gate the plugin manager enforces.
+    assert.equal(typeof pkg.engines?.dsh, 'string', 'engines.dsh is the install-time compatibility gate')
+    assert.ok(pkg.engines.dsh.trim() !== '', 'engines.dsh must not be empty')
+
+    // A known boolean keeps the client-module manifest parser from throwing at boot.
+    assert.equal(typeof pkg.dsh?.client?.immediately, 'boolean', 'dsh.client.immediately must be a boolean')
+
+    // The host reads <specifier>/locale/<language>.json through the exports map, so the
+    // wildcard target must cover every shipped locale file (not just the ones we know).
+    const localePattern = pkg.exports['./locale/*.json']
+    assert.equal(typeof localePattern, 'string', 'package.json must export the locale directory as ./locale/*.json')
+    const localeFiles = readdirSync(path.join(REPO_ROOT, 'locale')).filter((file) => file.endsWith('.json'))
+    assert.ok(localeFiles.includes('en.json'), 'locale/en.json must exist')
+    assert.ok(localeFiles.includes('zh.json'), 'locale/zh.json must exist')
+    const glob = localePattern.slice(2).replace('.', '\\.').replace('*', '[^/]+')
+    const matcher = new RegExp(`^${glob}$`)
+    for (const file of localeFiles) {
+      assert.match(`locale/${file}`, matcher, `locale/${file} is not matched by exports["./locale/*.json"]`)
+    }
+  })
 })

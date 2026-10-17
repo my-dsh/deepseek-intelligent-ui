@@ -31,7 +31,7 @@ function check(ok, label, detail = '') {
 const noop = () => undefined
 
 /* The smallest React the fragments touch at module-evaluation time. Rendering is not
- * exercised here; `chunk.test.mjs` and the live page cover that. */
+ * exercised here; the live page covers it. */
 const ReactShim = {
   createElement: (type, props, ...children) => ({ type, props, children }),
   Fragment: 'Fragment',

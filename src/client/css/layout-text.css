@@ -253,6 +253,14 @@
   vertical-align: baseline;
 }
 
+.iui-lt-badge-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: currentColor;
+}
+
 .iui-lt-inline-code {
   padding: 1px 4px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -279,6 +287,15 @@
 }
 
 /* --- list / list item ------------------------------------------------------------------- */
+
+/* Wrapper used when a capped list renders its truncation notice. */
+.iui-list-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
 
 .iui-lt-list {
   display: flex;

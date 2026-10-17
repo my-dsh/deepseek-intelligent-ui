@@ -51,7 +51,16 @@ Client: tool.call.toolview[key=intelligent_ui] reads block.call.argsRaw
 
 ## 4. Build
 
-`node scripts/build-client.mjs` concatenates the sources into `client.js`.
+`node scripts/build-client.mjs` concatenates the sources into `client.js`. The build is
+strict: a missing phase file, a `.js` file under `src/` that no phase claims, a duplicate
+top-level name, a leftover `import`/`export`, an `export default`, or a `var` declaration
+fails it, and nothing is written on failure. It is also idempotent: when the rendered
+artifact would be byte-identical the committed `builtAt` stamp is reused and `client.js`
+is left untouched, so an unchanged tree rebuilds cleanly. `IUI_BUILT_AT` pins the stamp
+explicitly. There is no `--strict` flag any more (it is accepted only for compatibility).
+Standalone comment lines (JSDoc and full-line `//`) are dropped from the artifact — about
+15% smaller; `--keep-comments` keeps them while debugging a bundle-level problem. Code is
+never reformatted, so behaviour cannot change.
 
 Phase order (a `.js` file under `src/` that matches no phase is a build error):
 
@@ -66,13 +75,15 @@ Phase order (a `.js` file under `src/` that matches no phase is a build error):
 
 Every `src/client/**/*.css` is concatenated (sorted) into one stylesheet.
 
-Per-file transform while concatenating:
+Per-file transform while concatenating (line starts are classified lexically first, so a
+line inside a string, template literal or block comment is never rewritten):
 
-- Lines starting with `import` are **dropped**. In `src/lang`, `import` may only target
-  `./`-relative files inside `src/lang`. In `src/client`, never write `import`; `React`
-  and `h` come from the enclosing factory.
+- `import` statements are **dropped**, single- or multi-line. In `src/lang`, `import` may
+  only target `./`-relative files inside `src/lang`. In `src/client`, never write `import`;
+  `React` and `h` come from the enclosing factory.
 - A leading `export ` is stripped from `export function|async function|const|let|class`.
-- Lines of the form `export { ... } from '...'` are dropped.
+- `export { ... } from '...'`, `export * from '...'`, and a single-line local
+  `export { ... }` are dropped.
 - `export default` is a build error. Duplicate top-level declaration names across all
   fragments are a build error. A leftover `import`/`export` at line start is a build error.
 
@@ -156,7 +167,8 @@ unary `! -`, then postfix `.`/`[]`, then primary. Ternary sits just above `||`.
 Grammar notes: one statement per line, `identifier = expression`; `$identifier = expression`;
 strings are double-quoted with `\` escapes; `true`/`false`/`null` literals; arrays `[...]`;
 objects `{key: value, ...}` with bare or quoted keys; `@Name(args)` for built-ins;
-named arguments (`x: 1`) are **not** supported and must produce an error diagnostic.
+named arguments (`x: 1`) are **not** supported and must produce an error diagnostic;
+`//` starts a comment that runs to the end of the line (so `6 // 2` is `6`, not division).
 
 ### 5.3 Evaluation
 
@@ -468,16 +480,26 @@ image.failed  chart.empty  unknown.component
 
 ## 9. Verification
 
-1. `node --test` (no path: `node --test test/` is broken on Node v22.22.1) and
-   `node --test "test/e2e/*.test.mjs"` — parser/evaluator/function unit tests (lang-core)
-   and the program corpus + host contract (verifier).
-2. `node scripts/build-client.mjs --strict`, `node --check client.js`, and
+1. `node --test` (no path: `node --test test/` is broken because the directory argument is
+   resolved as a module/test file) and `node --test "test/e2e/*.test.mjs"` —
+   parser/evaluator/function unit tests (lang-core), the program corpus + host contract
+   (verifier), and the release/packaging checks in `test/release.test.mjs`.
+2. `node scripts/build-client.mjs` (strict by default; a missing fragment, duplicate name or
+   syntax error fails the build and writes nothing), `node --check client.js`, and
    `node scripts/probe-client.mjs` (evaluates the built artifact outside the browser and
    asserts the slot registration plus 48/48 components and every taught `@function`).
-3. Manifest check: `dsh.bundle.patch`, `dsh.client`, exports resolve to real files, icon is
-   a valid SVG < 256 KiB.
-4. Live check after `plugin_manager install_bundle`: `Slots` shows
+3. `npm run check` is the single local gate: strict build → `node --check client.js` →
+   `probe-client` → `node --test`. CI (`.github/workflows/ci.yml`) runs it on every push to
+   main and every pull request and then fails if the committed `client.js` differs from the
+   rebuild; the release workflow (`.github/workflows/publish.yml`) runs the same steps on the
+   tag before `npm publish`.
+4. Manifest check: `dsh.bundle.patch`, `dsh.client`, exports resolve to real files, icon is
+   a valid SVG < 256 KiB, and `package.json` `files` ships the runtime (`index.js`,
+   `client.js`, `cordis.patch.yml`, `src/lang`, `locale/*.json`, `icon.svg`, `README.md`)
+   without the development-only `src/client/**` or `scripts/**`.
+5. Live check after `plugin_manager install_bundle`: `Slots` shows
    `tool.call.toolview` occupied with key `intelligent_ui`.
-5. Live UI check: call the `intelligent_ui` tool in the session shown by the GUI, then read
+6. Live UI check: call the `intelligent_ui` tool in the session shown by the GUI, then read
    the page: screenshot, no console error, the row renders interactive controls, and
-   `window.__DSH_INTELLIGENT_UI__` reports the component/function counts.
+   `window.__DSH_INTELLIGENT_UI__` reports the component/function counts and the running
+   `version`/`builtAt`.

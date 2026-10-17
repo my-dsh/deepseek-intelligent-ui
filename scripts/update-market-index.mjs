@@ -19,10 +19,18 @@
  *   published. Rewrites market/index.json only when the result differs. The explicit
  *   version matters in CI, where the index is updated on a checkout of main whose
  *   package.json may already name the next release.
+ *
+ *   In that CI case the checked-out manifest also has the wrong `engines`, so the
+ *   workflow passes the tagged manifest's requirements as `IUI_MARKET_ENGINES_JSON`
+ *   (a JSON object of engine requirements, e.g. `{"dsh":">=0.2.1-alpha.4"}`). The
+ *   entry then records the released version's floor, not the next release's.
  */
 import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+
+/** Environment variable carrying the tagged manifest's engines as a JSON object. */
+const ENGINES_OVERRIDE_ENV = 'IUI_MARKET_ENGINES_JSON'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const INDEX_FILE = join(ROOT, 'market', 'index.json')
@@ -115,6 +123,50 @@ export function indexEngines(manifest) {
 }
 
 /**
+ * Parse the release workflow's tagged-manifest engines override.
+ *
+ * The index commit is made on a checkout of main, whose `package.json` may already
+ * name the next release, so the entry for the version being listed has to carry the
+ * released tree's engine floor. The workflow passes it as JSON in
+ * `IUI_MARKET_ENGINES_JSON`.
+ *
+ * @param {string | undefined} value - JSON object of engine requirements, e.g. `{"dsh":">=0.2.1-alpha.4"}`.
+ * @returns {Record<string, string> | undefined} parsed engines, or undefined when the variable is unset or empty.
+ */
+export function parseEnginesOverride(value) {
+  if (value === undefined || value.trim() === '') return undefined
+  let parsed
+  try {
+    parsed = JSON.parse(value)
+  } catch {
+    throw new Error(`${ENGINES_OVERRIDE_ENV} must be a JSON object of engine requirements, got ${JSON.stringify(value)}`)
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error(`${ENGINES_OVERRIDE_ENV} must be a JSON object of engine requirements, got ${JSON.stringify(value)}`)
+  }
+  const engines = {}
+  for (const [name, range] of Object.entries(parsed)) {
+    if (typeof range !== 'string' || range.trim() === '') {
+      throw new Error(`${ENGINES_OVERRIDE_ENV}.${name} must be a non-empty string, got ${JSON.stringify(range)}`)
+    }
+    engines[name] = range
+  }
+  return engines
+}
+
+/**
+ * `engines` to record for one index entry: the tagged-manifest override when supplied,
+ * otherwise the checkout's own manifest.
+ *
+ * @param {object} manifest - the parsed package.json of the current checkout.
+ * @param {Record<string, string> | undefined} override - result of {@link parseEnginesOverride}.
+ * @returns {Record<string, string>} engines for {@link marketVersionEntry}.
+ */
+export function entryEngines(manifest, override) {
+  return override ?? indexEngines(manifest)
+}
+
+/**
  * Publish time of `name@version` as integer Unix seconds.
  *
  * A fresh publish can take a moment to appear in the registry document, so this
@@ -170,7 +222,11 @@ async function main() {
     console.log(`update-market-index: ${manifest.name}@${version} is already listed`)
     return
   }
-  const entry = marketVersionEntry(version, await publishedAt(manifest.name, version), indexEngines(manifest))
+  const entry = marketVersionEntry(
+    version,
+    await publishedAt(manifest.name, version),
+    entryEngines(manifest, parseEnginesOverride(process.env[ENGINES_OVERRIDE_ENV])),
+  )
   const after = `${JSON.stringify(withMarketVersion(index, manifest.name, entry), null, 2)}\n`
   if (after === before) {
     console.log(`update-market-index: ${manifest.name}@${version} is already listed`)

@@ -2,8 +2,9 @@
  * Tokenizer for the openui-lang subset implemented by this bundle.
  *
  * The language is line oriented: the parser groups the tokens produced here by their
- * source line, so every statement is exactly one physical line. The tokenizer never
- * throws; anything it cannot read becomes an entry in `diagnostics` and is skipped.
+ * source line, so every statement is exactly one physical line. `//` starts a comment
+ * that runs to the end of the line. The tokenizer never throws; anything it cannot read
+ * becomes an entry in `diagnostics` and is skipped.
  *
  * @module src/lang/tokenize
  */

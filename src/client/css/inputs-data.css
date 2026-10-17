@@ -90,6 +90,14 @@
   border-color: var(--dsw-alias-brand-primary);
 }
 
+/* Keyboard focus needs a visible ring, not just a 1px border change. */
+.iui-input:focus-visible,
+.iui-textarea:focus-visible,
+.iui-select:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 1px;
+}
+
 .iui-textarea {
   resize: vertical;
   min-height: 64px;
@@ -607,6 +615,15 @@
 }
 
 /* --- table ------------------------------------------------------------------------------- */
+
+/* Wrapper used when a capped table renders its truncation notice. */
+.iui-table-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
 
 .iui-table-wrap {
   width: 100%;

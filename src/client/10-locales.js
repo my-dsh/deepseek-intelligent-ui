@@ -1,9 +1,11 @@
 /**
- * Dictionary of the `intelligent-ui` locale namespace.
+ * Dictionary of the `intelligent-ui` namespace.
  *
- * The key set is frozen by docs/INTERFACES.md §6.6: it is exactly these keys in
- * both `en` and `zh`, and components may use no others. `90-apply.js` registers
- * this dictionary with `ctx.locale.register('intelligent-ui', { en, zh })`.
+ * The §6.6 key set is the contract: both dictionaries define exactly the same keys, and
+ * components may use no others. The keys after `unknown.component` are the screen-reader
+ * names and truncation copy the renderer itself needs, kept in the namespace instead of
+ * hard-coded English. `90-apply.js` registers this dictionary with
+ * `ctx.locale.register('intelligent-ui', { en, zh })`.
  *
  * @module @my-dsh/dsh-intelligent-ui/client/locales
  */
@@ -24,6 +26,13 @@ const en = {
   'image.failed': 'Image failed to load',
   'chart.empty': 'No data',
   'unknown.component': 'Unknown component',
+  'carousel.previous': 'Previous',
+  'carousel.next': 'Next',
+  'carousel.slide': 'Slide',
+  'popover.panel': 'Details',
+  'chart.label': 'Chart',
+  'chart.rows': 'rows',
+  'notice.truncated': 'This interface is too large, so part of it was not rendered.',
 }
 
 /** Chinese dictionary of the `intelligent-ui` namespace. */
@@ -42,6 +51,13 @@ const zh = {
   'image.failed': '图片加载失败',
   'chart.empty': '暂无数据',
   'unknown.component': '未知组件',
+  'carousel.previous': '上一张',
+  'carousel.next': '下一张',
+  'carousel.slide': '幻灯片',
+  'popover.panel': '详情',
+  'chart.label': '图表',
+  'chart.rows': '行数据',
+  'notice.truncated': '界面过大，部分内容未渲染。',
 }
 
 /**

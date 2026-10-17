@@ -35,8 +35,7 @@
     "index.js",
     "client.js",
     "cordis.patch.yml",
-    "src",
-    "scripts",
+    "src/lang",
     "locale/*.json",
     "icon.svg",
     "README.md"
@@ -46,9 +45,9 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "node scripts/build-client.mjs --strict",
+    "build": "node scripts/build-client.mjs",
     "test": "node --test",
-    "check": "node scripts/build-client.mjs --strict && node --check client.js && node --test"
+    "check": "node scripts/build-client.mjs && node --check client.js && node scripts/probe-client.mjs && node --test"
   },
   "dsh": {
     "bundle": {

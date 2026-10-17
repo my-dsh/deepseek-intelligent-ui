@@ -80,58 +80,53 @@ const OUTPUT_SCHEMA = {
 
 /**
  * Visit every expression node of a program.
+ *
+ * Iterative on purpose: the parser accepts long flat binary chains (its depth guard only
+ * bounds nesting) and a recursive walk over a `root = 1 + 1 + ...` program with a few
+ * thousand terms would overflow the JavaScript stack instead of returning diagnostics.
  * @param {object} program - parsed program.
  * @param {(node: object) => void} visit - called for each node.
  * @returns {void}
  */
 function walkProgram(program, visit) {
-  for (const statement of program.statements ?? []) walkNode(statement.expr, visit)
-}
-
-/**
- * Visit one node and its children; tolerates malformed nodes.
- * @param {unknown} node - AST node.
- * @param {(node: object) => void} visit - called for each node.
- * @returns {void}
- */
-function walkNode(node, visit) {
-  if (node === null || typeof node !== 'object') return
-  if (Array.isArray(node)) {
-    for (const item of node) walkNode(item, visit)
-    return
-  }
-  visit(node)
-  switch (node.t) {
-    case 'arr':
-      for (const item of node.items ?? []) walkNode(item, visit)
-      break
-    case 'obj':
-      for (const entry of node.entries ?? []) walkNode(entry.value, visit)
-      break
-    case 'mem':
-      walkNode(node.obj, visit)
-      break
-    case 'idx':
-      walkNode(node.obj, visit)
-      walkNode(node.index, visit)
-      break
-    case 'un':
-      walkNode(node.arg, visit)
-      break
-    case 'bin':
-      walkNode(node.left, visit)
-      walkNode(node.right, visit)
-      break
-    case 'tern':
-      walkNode(node.cond, visit)
-      walkNode(node.then, visit)
-      walkNode(node.else, visit)
-      break
-    case 'call':
-      for (const arg of node.args ?? []) walkNode(arg, visit)
-      break
-    default:
-      break
+  const pending = []
+  for (const statement of program.statements ?? []) pending.push(statement ? statement.expr : null)
+  while (pending.length > 0) {
+    const node = pending.pop()
+    if (node === null || typeof node !== 'object') continue
+    if (Array.isArray(node)) {
+      for (const item of node) pending.push(item)
+      continue
+    }
+    visit(node)
+    switch (node.t) {
+      case 'arr':
+        for (const item of node.items ?? []) pending.push(item)
+        break
+      case 'obj':
+        for (const entry of node.entries ?? []) pending.push(entry ? entry.value : null)
+        break
+      case 'mem':
+        pending.push(node.obj)
+        break
+      case 'idx':
+        pending.push(node.obj, node.index)
+        break
+      case 'un':
+        pending.push(node.arg)
+        break
+      case 'bin':
+        pending.push(node.left, node.right)
+        break
+      case 'tern':
+        pending.push(node.cond, node.then, node.else)
+        break
+      case 'call':
+        for (const arg of node.args ?? []) pending.push(arg)
+        break
+      default:
+        break
+    }
   }
 }
 

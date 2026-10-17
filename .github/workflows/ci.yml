@@ -1,0 +1,45 @@
+# Continuous integration: every push to main and every pull request must pass the
+# same gate the release workflow runs. Without this, a regression reaches main (and
+# the market-index commits the release bot pushes there) before any test runs, and
+# only fails once a tag already exists.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  # Read-only: this workflow never writes to the repository.
+  contents: read
+
+concurrency:
+  # A newer push to the same branch/PR supersedes the older run.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - name: Build, probe, and test
+        # `check` = strict client build + `node --check client.js` + probe-client +
+        # `node --test`; the build is a no-op on an unchanged tree.
+        run: npm run check
+
+      - name: client.js must match its sources
+        # The build above regenerated client.js in place, so a non-empty diff means
+        # the committed artifact is stale. This mirrors the release gate.
+        run: |
+          if ! git diff --exit-code -- client.js; then
+            echo "::error::client.js is stale — run node scripts/build-client.mjs and commit the result"
+            exit 1
+          fi

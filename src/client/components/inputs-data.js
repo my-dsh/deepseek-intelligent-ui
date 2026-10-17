@@ -459,6 +459,61 @@ function iuiBNumText(value, step) {
   return decimals > 0 ? n.toFixed(decimals) : String(Math.round(n * 1e6) / 1e6)
 }
 
+/** Hard caps for one data-driven component: the row's 400-component budget counts
+ * descriptors, so these bound the host nodes a single array can produce. */
+const IUI_MAX_ROWS = 500
+const IUI_MAX_CHART_ROWS = 400
+
+/**
+ * Bound one data array by the row's output budget.
+ *
+ * @param {object} ctx - component context.
+ * @param {number} count - rows the data array holds.
+ * @param {number} limit - component-level hard cap.
+ * @param {number} nodesPerRow - host nodes one row costs (cells, items, marks).
+ * @returns {{ rows: number, truncated: boolean }} rows to render, and whether data was dropped.
+ */
+function iuiBRowsWithinBudget(ctx, count, limit, nodesPerRow) {
+  const total = typeof count === 'number' && Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0
+  const capped = Math.min(total, limit)
+  const charge = ctx !== null && typeof ctx === 'object' && typeof ctx.charge === 'function' ? ctx.charge : null
+  if (charge === null || capped === 0) return { rows: capped, truncated: capped < total }
+  let rows = 0
+  while (rows < capped) {
+    const step = Math.min(capped - rows, 16)
+    if (!charge(step * nodesPerRow)) break
+    rows += step
+  }
+  return { rows, truncated: rows < total }
+}
+
+/** Accessible summary for the drawing, which carries the chart's content for AT. */
+function iuiBChartLabel(ctx, type, count) {
+  return `${ctx.t('chart.label')}: ${type}, ${count} ${ctx.t('chart.rows')}`
+}
+
+/** The localized "part of this interface was not rendered" notice. */
+function iuiBTruncationNotice(ctx) {
+  return h('div', { className: 'iui-notice iui-truncated', role: 'note' }, ctx.t('notice.truncated'))
+}
+
+/**
+ * URL an `<img>` may load: the shared link policy plus inline `data:image/…` payloads.
+ * @param {object} ctx - component context (for `utils.safeUrl`).
+ * @param {string} src - the program's `src` argument.
+ * @returns {string} the safe URL, or `''` when it must not be loaded.
+ */
+function iuiBImageSrc(ctx, src) {
+  const text = typeof src === 'string' ? src.trim() : ''
+  if (text === '') return ''
+  if (/^data:image\//i.test(text)) return text
+  const utils = ctx !== null && typeof ctx === 'object' ? ctx.utils : null
+  const safe = utils !== null && typeof utils === 'object' && typeof utils.safeUrl === 'function'
+    ? utils.safeUrl(text)
+    : text
+  return typeof safe === 'string' ? safe : ''
+}
+
 function iuiBTick(value, format, currency) {
   const n = iuiBNum(value, 0)
   const kind = format === undefined || format === null || format === '' ? 'number' : String(format)
@@ -1047,7 +1102,10 @@ iuiRegisterComponents({
         aspectRatio: ratio,
         borderRadius: iuiBRadius(props.radius),
       }
-      if (src === '' || failed) {
+      // Images follow the same URL policy as links, plus inline `data:image/…` payloads;
+      // anything else (javascript:, file:, protocol-relative) never reaches the <img>.
+      const safe = iuiBImageSrc(ctx, src)
+      if (safe === '' || failed) {
         return h('div', { className: boxClass + ' iui-image-fallback', style: wrapperStyle }, [
           iuiBIconNode('image', 20, undefined, 'iui-icon', 'icon'),
           h('span', { key: 'text', className: 'iui-image-fallback-text' }, ctx.t('image.failed')),
@@ -1055,9 +1113,10 @@ iuiRegisterComponents({
       }
       return h('div', { className: boxClass, style: wrapperStyle }, h('img', {
         className: 'iui-image-el',
-        src,
+        src: safe,
         alt: props.alt === undefined || props.alt === null ? '' : String(props.alt),
         loading: 'lazy',
+        referrerPolicy: 'no-referrer',
         style: { objectFit: fit },
         onError: () => setFailed(true),
       }))
@@ -1092,12 +1151,16 @@ iuiRegisterComponents({
       const rawRows = Array.isArray(props.rows)
         ? iuiBShapeRows(props.rows, columns.length)
         : (props.rows === undefined || props.rows === null ? [] : [props.rows])
+      // One dispatch must not be able to emit thousands of DOM nodes: cap the rows and
+      // charge them against the row's output budget, then say what was dropped.
+      const plan = iuiBRowsWithinBudget(ctx, rawRows.length, IUI_MAX_ROWS, columns.length + 1)
+      const rows = plan.truncated ? rawRows.slice(0, plan.rows) : rawRows
       const head = h('thead', { key: 'head' }, h('tr', null, columns.map((column, index) => h('th', {
         key: ctx.key('th', index),
         className: 'iui-th',
         scope: 'col',
       }, iuiBRender(ctx, column.label)))))
-      const body = h('tbody', { key: 'body' }, rawRows.map((row, rowIndex) => {
+      const body = h('tbody', { key: 'body' }, rows.map((row, rowIndex) => {
         let cells
         if (Array.isArray(row)) cells = row
         else if (row !== null && typeof row === 'object' && !IUI.util.isElement(row) && !IUI.util.isBinding(row)) {
@@ -1113,7 +1176,10 @@ iuiRegisterComponents({
           }, numeric ? iuiBNumText(cell, undefined) : iuiBRender(ctx, cell))
         }))
       }))
-      return h('div', { className: 'iui-table-wrap' }, h('table', { className: 'iui-table' }, [head, body]))
+      const table = h('div', { className: 'iui-table-wrap' }, h('table', { className: 'iui-table' }, [head, body]))
+      return plan.truncated
+        ? h('div', { className: 'iui-table-block' }, [table, iuiBTruncationNotice(ctx)])
+        : table
     }),
   },
 
@@ -1125,10 +1191,10 @@ iuiRegisterComponents({
         className: 'iui-chart-empty-text',
       }, ctx.t('chart.empty')))
       const type = iuiBPick(props.type, ['bar', 'line', 'area', 'pie', 'donut', 'scatter'], 'bar')
-      const rows = Array.isArray(props.data)
+      const rawData = Array.isArray(props.data)
         ? props.data.filter(row => row !== null && typeof row === 'object' && !Array.isArray(row))
         : []
-      if (rows.length === 0) return empty
+      if (rawData.length === 0) return empty
       const xKey = props.x === undefined || props.x === null ? null : String(props.x)
       const stacked = iuiBBool(ctx.value(props.stacked), false)
       const format = props.format === undefined || props.format === null ? null : String(props.format)
@@ -1137,9 +1203,14 @@ iuiRegisterComponents({
       const hasSeries = props.series !== undefined && props.series !== null
       let keys = hasSeries
         ? (Array.isArray(props.series) ? props.series.map(String) : [String(props.series)])
-        : Object.keys(rows[0]).filter(key => key !== xKey && typeof rows[0][key] === 'number')
-      keys = keys.filter(key => rows.some(row => typeof row[key] === 'number' && Number.isFinite(row[key])))
+        : Object.keys(rawData[0]).filter(key => key !== xKey && typeof rawData[0][key] === 'number')
+      keys = keys.filter(key => rawData.some(row => typeof row[key] === 'number' && Number.isFinite(row[key])))
       if (keys.length === 0) return empty
+      // One chart draws a mark per data row, so the array is bounded the same way Table's
+      // rows are, and the charge keeps a 5,000-row array from freezing the chat.
+      const plan = iuiBRowsWithinBudget(ctx, rawData.length, IUI_MAX_CHART_ROWS, 2)
+      const rows = plan.truncated ? rawData.slice(0, plan.rows) : rawData
+      const truncated = plan.truncated
       const labelOf = (row, index) => {
         if (xKey !== null && row[xKey] !== undefined && row[xKey] !== null) return iuiBText(row[xKey])
         if (row.x !== undefined && row.x !== null) return iuiBText(row.x)
@@ -1201,9 +1272,11 @@ iuiRegisterComponents({
             className: 'iui-chart-svg',
             viewBox: '0 0 ' + width + ' ' + height,
             preserveAspectRatio: 'xMidYMid meet',
-            'aria-hidden': 'true',
+            role: 'img',
+            'aria-label': iuiBChartLabel(ctx, type, rows.length),
           }, slices),
           iuiBChartLegend(legendItems, ctx),
+          truncated ? iuiBTruncationNotice(ctx) : null,
         ])
       }
 
@@ -1356,9 +1429,11 @@ iuiRegisterComponents({
           className: 'iui-chart-svg',
           viewBox: '0 0 ' + width + ' ' + height,
           preserveAspectRatio: 'xMidYMid meet',
-          'aria-hidden': 'true',
+          role: 'img',
+          'aria-label': iuiBChartLabel(ctx, type, rows.length),
         }, shapes),
         iuiBChartLegend(legendItems, ctx),
+        truncated ? iuiBTruncationNotice(ctx) : null,
       ])
     }),
   },

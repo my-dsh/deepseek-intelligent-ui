@@ -9,6 +9,15 @@ Authority for every expectation: `docs/INTERFACES.md` (frozen v1), read in full 
 test was written. Where the document defers ("argument order as in the reference spec") the
 reference is `/tmp/oiui-ref/` (upstream data, reference only).
 
+> **Historical snapshot.** This log records the Phase A/B verification as taken on Node
+> **v22.22.1** (suite snapshots of 84 and 92 tests, `client.js` 315,120 B). Those numbers are
+> intentionally left as they were measured. The current gate is Node 24 plus `npm run check`
+> — strict `client.js` build, `node --check client.js`, `probe-client`, then `node --test` —
+> and the suite count is whatever `node --test` prints (it grows with every added test —
+> 106 before the release/packaging checks were added). The release workflow (`.github/workflows/publish.yml`) re-runs that gate
+> on the tag before publishing, and `.github/workflows/ci.yml` runs it on every push to main
+> and every pull request. `docs/INTERFACES.md` §9 is the current authority for the gate.
+
 ---
 
 ## 1. How to reproduce
@@ -17,12 +26,14 @@ reference is `/tmp/oiui-ref/` (upstream data, reference only).
 | --- | --- |
 | Full suite (language unit tests + corpus + host) | `node --test` |
 | Verifier suite only | `node --test "test/e2e/*.test.mjs"` |
-| Strict client build | `node scripts/build-client.mjs --strict` |
+| Strict client build | `node scripts/build-client.mjs` (strict is the default) |
 | Syntax-check the built artifact | `node --check client.js` |
 | Built-artifact probe (Lead-owned) | `node scripts/probe-client.mjs` |
+| Full gate (what CI and the release job run) | `npm run check` |
 | Raw evidence dump (JSON on stdout) | `node test/e2e/report.mjs` |
 
-Node under test: **v22.22.1**.
+Node under test for the pinned runs in this log: **v22.22.1** (historical; the current
+gate runs on Node 24).
 
 > **F1 is fixed (Lead, 2026-10-16).** `package.json` now has `"test": "node --test"`,
 > `"build": "node scripts/build-client.mjs --strict"` and
@@ -345,3 +356,32 @@ NOT VERIFIED, and reported as such: a rendered dark-mode screenshot (the row sit
 the viewport in a virtualized chat and the attribute flip could not be combined with a capture in
 that harness); real-device touch behaviour; and the contrast numbers above are computed, not
 measured from pixels.
+
+---
+
+## 2026-10-17 optimization pass (post-v1.0.4, Lead-run)
+
+Three parallel read-only audits (language core, client half, host/build/release) preceded this
+work; every change below was implemented in the same repository and re-verified. `node --test`
+went 106 → 143 tests, all green; `probe-client.mjs` PASS; `node scripts/build-client.mjs` is
+byte-idempotent; the committed `client.js` is 282,382 B (was 317,325 B).
+
+| Area | Change | Measured evidence |
+| --- | --- | --- |
+| Evaluator cost | `Intl.NumberFormat`/`DateTimeFormat` cached per options shape (cap 64) in `src/lang/functions.js` and `utilFormatNumber` | 300-row dashboard (Table + 2 Charts + 2 `@Format`/row) evaluation **10.27 ms → 0.85 ms** (12×); 200 rows of `@FormatDate(…,"long")` 8.05 ms → 0.48 ms |
+| Sparse data | `null`/`''` is *missing*, not `0`, in Sum/Avg/Min/Max/Stats/GroupBy/Pivot/Bucket/MovingAvg/Histogram and in `@Filter` ordering | `Min([null,5,9])` was `0`, now `5`; `@Filter` no longer matches rows whose field is absent |
+| DOM containment | Table/List/Chart rows are capped and charged against a 2,000-host-node output budget; truncation is a localized notice | `Table` over `@Range(0,5000)`: **15,015 → 1,517** DOM elements with one truncation notice; corpus rendering unchanged (24 ok / 4 designed error programs) |
+| Focus stability | React keys derive from `component:source-line|occurrence` instead of a global node counter | a search `Input` after a filtered `@Each` keeps the same DOM node when the list shrinks |
+| Console noise | diagnostics deduped per row + program | one unknown component inside `@Each(30)`: **30 warnings per render → 1** |
+| Security | `@OpenUrl` and `Image` use the shared URL allowlist (`http(s)/mailto/tel/`root-relative`/`#`, plus `data:image/` for images); `referrerPolicy="no-referrer"` | `@OpenUrl("javascript:alert(1)")` and an `Image("javascript:…")` no longer reach `window.open`/`<img>` |
+| Error recovery | error boundary resets when the program text changes | a transient component throw no longer bricks the row for its lifetime |
+| A11y | Badge never paints text and background the same token (dot + `label-primary` text on tints); `:focus-visible` ring on inputs; Chart `role="img"` summary; localized carousel/popover/notice copy | `Badge("x","muted")` was 1.00:1, now readable; 8/8 control ids and `label[for]` unchanged |
+| Correctness | `stateDefaults` independent of `options.state`; enum arguments (`@Format` kind, `@Duration` style, `@Top`/`@Sort` dir) validated with diagnostics; `@Unique` Set fast-path; `@Pivot` label collisions | `@Top(rows,"v",2,"ascending")` was descending; `@Unique` 8k numbers 21 ms → 1.1 ms |
+| Host robustness | `checkNames`/`walkNode` iterative | a 5,000-term flat expression used to throw `RangeError` inside `tool.execute`; now canonical |
+| Build | lexer-aware import/export transform (no silent line loss inside template literals), strict by default, no partial writes, byte-idempotent rebuilds, standalone comments stripped from the artifact, exported helpers under test | `client.js` 317,325 → 282,382 B; `test/build.test.mjs` (13 tests) covers transform edge cases, CLI strictness and idempotence |
+| Release/CI | new `ci.yml`; probe + `node --check` gate before publish; serialized releases; `npm@11` pinned; prerelease `--tag next`; market-index engines read from the tagged manifest | `test/release.test.mjs` (14 tests) asserts the gates and the published file set (`npm pack --dry-run`: 16 files / 122.8 kB packed, was 30 / 175.9 kB) |
+| Prompt | system-prompt section rebalanced (7,902 → 8,381 chars) teaching the rules that caused real failures: `//` comments, ASCII identifiers, `null` placeholders, boolean `&&`/`||`, loop variable without `$`, the 60 KB cap, Chart-vs-`@Format` percent units, and the enum truth | every taught name still resolves in the evaluator (probe) |
+
+Not verified here: real-browser timings and the live GUI refresh (the running profile still holds
+1.0.3; reinstall per README 开发/升级 section), and `javascript:`/`data:` semantics of
+`window.open` inside the user's own Chrome.

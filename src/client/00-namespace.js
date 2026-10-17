@@ -95,3 +95,17 @@ function iuiReportDiagnostic(severity, message, line) {
 function iuiResetDiagnostics() {
   IUI.diagnostics = []
 }
+
+/**
+ * Identity of one diagnostic, used to log a warning once per row and program instead of
+ * once per render pass. A state-driven re-render re-reports the same diagnostics on every
+ * keystroke; without this key an `@Each` of unknown components floods the console.
+ *
+ * @param {'error'|'warning'} severity - diagnostic severity.
+ * @param {string} message - human-readable message.
+ * @param {number} [line] - source line, when known.
+ * @returns {string} stable key.
+ */
+function iuiDiagnosticKey(severity, message, line) {
+  return `${severity}|${Number.isFinite(line) ? line : ''}|${String(message)}`
+}

@@ -18,6 +18,59 @@ const IUI_MAX_NODES = 400
 /** Maximum component nesting depth per row (docs/INTERFACES.md §7). */
 const IUI_MAX_DEPTH = 20
 
+/**
+ * Maximum *host* nodes a row may emit. The 400-component budget counts the descriptor
+ * tree only, so a single `Table`/`List`/`Chart` dispatch could otherwise emit thousands
+ * of DOM nodes from one data array. Data-driven components charge the rows/cells they
+ * render against this budget and truncate with the localized notice.
+ */
+const IUI_MAX_OUTPUT_NODES = 2000
+
+/** Bounded cache of `Intl.NumberFormat` instances. */
+const IUI_NUMBER_FORMAT_LIMIT = 64
+
+/** Formatter cache: constructing one costs ~18 µs, a cached `format` ~0.25 µs. */
+const IUI_NUMBER_FORMATS = new Map()
+
+/**
+ * Cached `Intl.NumberFormat` for one options shape.
+ *
+ * @param {object} options - `Intl.NumberFormat` options.
+ * @returns {Intl.NumberFormat | null} the formatter, or null when `Intl` rejects the options.
+ */
+function utilNumberFormat(options) {
+  const key = JSON.stringify(options)
+  if (IUI_NUMBER_FORMATS.has(key)) return IUI_NUMBER_FORMATS.get(key)
+  let formatter = null
+  try {
+    formatter = new Intl.NumberFormat(undefined, options)
+  } catch {
+    formatter = null
+  }
+  if (IUI_NUMBER_FORMATS.size < IUI_NUMBER_FORMAT_LIMIT) IUI_NUMBER_FORMATS.set(key, formatter)
+  return formatter
+}
+
+/**
+ * URL policy shared by `Link`, inline anchors and `@OpenUrl`.
+ *
+ * Allows `http(s)`, `mailto:`, `tel:`, root-relative and `#` targets; rejects every other
+ * scheme (`javascript:`, `data:`, `file:`, …), protocol-relative `//host` targets and
+ * control characters, all of which degrade to plain text / a no-op.
+ *
+ * @param {unknown} value - candidate URL.
+ * @returns {string} the safe URL, or `''` when it must not be used.
+ */
+function utilSafeUrl(value) {
+  if (typeof value !== 'string') return ''
+  const text = value.trim()
+  if (text === '') return ''
+  // eslint-disable-next-line no-control-regex -- rejecting control characters is the point
+  if (/[\u0000-\u001f\u007f]/.test(text)) return ''
+  if (text.startsWith('//')) return ''
+  return /^(https?:\/\/|mailto:|tel:|\/|#)/i.test(text) ? text : ''
+}
+
 /** Fallback used when the host locale service is unreachable. */
 const IUI_FALLBACK_T = key => (typeof iuiFallbackText === 'function' ? iuiFallbackText(key) : String(key))
 
@@ -168,7 +221,9 @@ function utilFormatNumber(value, kind, decimals, currency) {
     options.maximumFractionDigits = digits
   }
   try {
-    return new Intl.NumberFormat(undefined, options).format(number)
+    const formatter = utilNumberFormat(options)
+    if (formatter === null) return String(number)
+    return formatter.format(number)
   } catch {
     try {
       return String(number)
@@ -271,6 +326,7 @@ IUI.util = {
   color: utilColor,
   formatNumber: utilFormatNumber,
   stringify: utilStringify,
+  safeUrl: utilSafeUrl,
 }
 
 /**
@@ -284,8 +340,23 @@ function iuiCreateRenderer(options) {
   const config = options ?? {}
   const store = config.store
   const entryMap = IUI.components ?? {}
-  const budget = { nodes: 0, max: IUI_MAX_NODES, maxDepth: IUI_MAX_DEPTH, overflow: false }
+  const budget = {
+    nodes: 0,
+    max: IUI_MAX_NODES,
+    maxDepth: IUI_MAX_DEPTH,
+    overflow: false,
+    output: 0,
+    maxOutput: IUI_MAX_OUTPUT_NODES,
+    // Set once the descriptor traversal is done: dispatches that happen later (inside
+    // React's render pass, the lazily rendered children of components-b) are charged
+    // against the output budget instead of the 400-component budget.
+    lazy: false,
+  }
   const capabilities = config.capabilities ?? {}
+  /** Diagnostics already logged for this row+program, so a re-render logs each once. */
+  const reported = config.reported instanceof Set ? config.reported : null
+  /** Per-pass occurrence counter per component+source line, for stable React keys. */
+  const occurrences = new Map()
   const diagnostics = []
   let announcedOverflow = false
 
@@ -300,10 +371,16 @@ function iuiCreateRenderer(options) {
 
   /** Record one diagnostic; capped so a runaway program cannot flood memory. */
   function record(severity, message, line) {
-    if (diagnostics.length >= 40) return
     const diagnostic = { severity, message: String(message) }
     if (Number.isFinite(line) && line > 0) diagnostic.line = line
-    diagnostics.push(diagnostic)
+    if (diagnostics.length < 40) diagnostics.push(diagnostic)
+    // A state-driven re-render re-reports every diagnostic. Log each one once per row
+    // and program, so `@Each` of an unknown component cannot flood the console.
+    const key = iuiDiagnosticKey(severity, diagnostic.message, line)
+    if (reported !== null) {
+      if (reported.has(key)) return
+      if (reported.size < 256) reported.add(key)
+    }
     iuiReportDiagnostic(severity, message, line)
   }
 
@@ -321,7 +398,32 @@ function iuiCreateRenderer(options) {
   }
 
   function render(valueInput) {
-    return renderValue(valueInput, 0, 'p')
+    const tree = renderValue(valueInput, 0, 'p')
+    // Everything from here on runs inside React's render pass (lazily rendered children).
+    // Charging those dispatches against the component budget is what used to leave
+    // already-mounted controls childless, so they use the output budget instead.
+    budget.lazy = true
+    return tree
+  }
+
+  /** True when the budget of the current phase is exhausted. */
+  function budgetFull() {
+    return budget.lazy ? budget.output >= budget.maxOutput : budget.nodes >= budget.max
+  }
+
+  /**
+   * Charge `count` host nodes against the output budget.
+   * @param {number} count - host nodes the caller is about to emit.
+   * @returns {boolean} false when the charge would overflow (nothing is charged then).
+   */
+  function chargeOutput(count) {
+    const amount = typeof count === 'number' && Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0
+    if (budget.output + amount > budget.maxOutput) {
+      budget.overflow = true
+      return false
+    }
+    budget.output += amount
+    return true
   }
 
   /** Depth/budget guard shared by every rendered value. */
@@ -334,7 +436,7 @@ function iuiCreateRenderer(options) {
       }
       return false
     }
-    if (budget.nodes >= budget.max) {
+    if (budgetFull()) {
       budget.overflow = true
       return false
     }
@@ -350,7 +452,7 @@ function iuiCreateRenderer(options) {
     if (Array.isArray(input)) {
       const out = []
       for (let index = 0; index < input.length; index += 1) {
-        if (budget.nodes >= budget.max) {
+        if (budgetFull()) {
           budget.overflow = true
           break
         }
@@ -367,7 +469,8 @@ function iuiCreateRenderer(options) {
   /** A named component call → one React element (or a guard notice). */
   function dispatch(descriptor, depth, path) {
     if (!enter(depth)) return null
-    budget.nodes += 1
+    if (budget.lazy) budget.output += 1
+    else budget.nodes += 1
     const name = String(descriptor.name ?? '')
     const entry = Object.prototype.hasOwnProperty.call(entryMap, name) ? entryMap[name] : undefined
     const args = Array.isArray(descriptor.args) ? descriptor.args : []
@@ -376,7 +479,13 @@ function iuiCreateRenderer(options) {
       return notice('iui-unknown', `${translate('unknown.component')}: ${name}`, path)
     }
     const argsNames = Array.isArray(entry.args) ? entry.args : []
-    const props = { key: nodeKey(`c:${name}:${descriptor.line ?? depth}`, budget.nodes) }
+    // Keys are derived from the component name and its source line (plus the occurrence
+    // among same-tag nodes), not from a global node counter: a growth elsewhere in the
+    // tree must not re-key — and remount — an unrelated input.
+    const tag = `c:${name}:${descriptor.line ?? depth}`
+    const occurrence = (occurrences.get(tag) ?? 0) + 1
+    occurrences.set(tag, occurrence)
+    const props = { key: `${tag}|${occurrence}` }
     for (let index = 0; index < args.length; index += 1) {
       const argName = typeof argsNames[index] === 'string' ? argsNames[index] : `arg${index + 1}`
       props[argName] = args[index]
@@ -466,6 +575,17 @@ function iuiCreateRenderer(options) {
       utils: IUI.util,
       input: capabilities.inputActions ?? null,
       capabilities,
+      /**
+       * Charge host nodes a data-driven component is about to emit. Returns false when the
+       * row's output budget cannot fit them, so the component truncates its data and shows
+       * the localized notice instead of freezing the chat.
+       *
+       * @param {number} count - host nodes about to be emitted.
+       * @returns {boolean} whether they fit.
+       */
+      charge: chargeOutput,
+      /** Host nodes left in the row's output budget. */
+      capacity: () => Math.max(0, budget.maxOutput - budget.output),
     }
   }
 
@@ -500,8 +620,10 @@ function iuiCreateRenderer(options) {
         return
       }
       if (name === 'OpenUrl') {
-        const url = value(args[0])
-        if (typeof url !== 'string' || url === '') return
+        // Same URL policy as `Link`/inline anchors: no javascript:, data:, file: or
+        // protocol-relative targets. An unsafe URL is a silent no-op, never a navigation.
+        const url = utilSafeUrl(value(args[0]))
+        if (url === '') return
         const open = typeof window !== 'undefined' ? window.open : undefined
         if (typeof open === 'function') open.call(window, url, '_blank', 'noopener,noreferrer')
         return
@@ -632,6 +754,19 @@ class IuiErrorBoundary extends React.Component {
     iuiReportDiagnostic('error', `interface render failed: ${iuiErrorMessage(error)}`)
   }
 
+  /**
+   * A program that changed (or was repaired) gets a fresh chance: the boundary must not
+   * latch a transient component error for the rest of the row's life.
+   *
+   * @param {object} previous - previous props.
+   * @returns {void}
+   */
+  componentDidUpdate(previous) {
+    if (this.state.failed && previous.resetKey !== this.props.resetKey) {
+      this.setState({ failed: false, message: '' })
+    }
+  }
+
   /** @returns {import('react').ReactNode} children, or the fallback box. */
   render() {
     if (this.state.failed) {
@@ -711,20 +846,6 @@ function Row(props) {
   const block = input.block
   const callId = typeof input.callId === 'string' ? input.callId : ''
   const toolviewT = typeof input.t === 'function' ? input.t : IUI_FALLBACK_T
-  const programText = phase === 'preparing' ? '' : iuiReadCallArgs(block).program
-  let parsed = null
-  if (programText !== '' && typeof parseProgram === 'function') {
-    try {
-      parsed = parseProgram(programText)
-    } catch (error) {
-      parsed = {
-        ok: false,
-        rootName: null,
-        statements: [],
-        diagnostics: [{ severity: 'error', message: `parse failed: ${iuiErrorMessage(error)}` }],
-      }
-    }
-  }
 
   // The Tool view is handed a `t` seat for the namespace declared at registration;
   // `IUI.localeT` is the same dictionary bound from the service, used only when a
@@ -733,6 +854,28 @@ function Row(props) {
     if (typeof toolviewT === 'function') return toolviewT
     return IUI.localeT !== null && typeof IUI.localeT === 'function' ? IUI.localeT : IUI_FALLBACK_T
   }, [toolviewT])
+
+  // Call arguments are read (and parsed) once per program, not once per render pass: the
+  // host re-renders a settled row for reasons that have nothing to do with the program,
+  // and every state-driven pass used to re-parse the same source again.
+  const callArgs = React.useMemo(
+    () => (phase === 'preparing' ? { program: '', title: '' } : iuiReadCallArgs(block)),
+    [phase, block],
+  )
+  const programText = callArgs.program
+  const parsed = React.useMemo(() => {
+    if (programText === '' || typeof parseProgram !== 'function') return null
+    try {
+      return parseProgram(programText)
+    } catch (error) {
+      return {
+        ok: false,
+        rootName: null,
+        statements: [],
+        diagnostics: [{ severity: 'error', message: `parse failed: ${iuiErrorMessage(error)}` }],
+      }
+    }
+  }, [programText])
 
   const ref = React.useRef(null)
   if (ref.current === null) {
@@ -743,12 +886,19 @@ function Row(props) {
       timer: null,
       program: '',
       store: iuiCreateStore({}),
-      renderer: null,
+      // Program text the store's defaults were last adopted from.
+      adoptedProgram: '',
+      // Diagnostics already logged for the current program, so a state-driven re-render
+      // logs each one once instead of once per keystroke.
+      reported: new Set(),
     }
   }
   ref.current.callId = callId
   ref.current.t = localeT
-
+  if (ref.current.program !== programText) {
+    ref.current.program = programText
+    ref.current.reported = new Set()
+  }
   const store = ref.current.store
   const [version, bump] = React.useState(0)
 
@@ -796,10 +946,8 @@ function Row(props) {
     t: localeT,
     callId,
     capabilities,
+    reported: ref.current.reported,
   })
-  const previousProgram = ref.current.program
-  ref.current.renderer = renderer
-  ref.current.program = programText
   iuiResetDiagnostics()
 
   let content = []
@@ -813,7 +961,10 @@ function Row(props) {
     const evaluated = iuiEvaluateProgram(parsed, store)
     // Only a NEW program adopts new defaults: a live row must keep the values the
     // user typed, and `syncDefaults` resets state when the declared set changes.
-    if (previousProgram !== programText) store.syncDefaults(evaluated.stateDefaults)
+    if (ref.current.adoptedProgram !== programText) {
+      ref.current.adoptedProgram = programText
+      store.syncDefaults(evaluated.stateDefaults)
+    }
     if (evaluated.root === null || evaluated.root === undefined) {
       content = [iuiErrorBox(
         localeT,
@@ -825,7 +976,7 @@ function Row(props) {
     }
   }
 
-  const title = headerTitle(block, localeT)
+  const title = callArgs.title !== '' ? callArgs.title : localeT('row.title')
   const canInspect = typeof input.inspect === 'function'
 
   return h('div', { className: 'iui-root', 'data-iui-version': iuiVersion(), 'data-iui-phase': phase },
@@ -855,13 +1006,7 @@ function Row(props) {
           },
         }, localeT('row.inspect')) : null)),
     h('div', { className: 'iui-body', 'data-iui-version': version },
-      h(IuiErrorBoundary, { title: localeT('error.title') }, ...content)))
-}
-
-/** Read the header title: the call's `title`, falling back to the tool label. */
-function headerTitle(block, t) {
-  const read = iuiReadCallArgs(block)
-  return read.title !== '' ? read.title : t('row.title')
+      h(IuiErrorBoundary, { title: localeT('error.title'), resetKey: programText }, ...content)))
 }
 
 /**

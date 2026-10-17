@@ -20,7 +20,8 @@ const IUI_STATE_LIMIT = 256
  *
  * @param {Record<string, unknown>} [defaults] - evaluated `$name = ...` defaults.
  * @returns {{get: (name: string) => unknown, set: (name: string, value: unknown) => void,
- *   defaults: () => Record<string, unknown>, reset: () => void,
+ *   defaults: () => Record<string, unknown>, defaultsSignature: () => string,
+ *   adopt: (next: Record<string, unknown>) => void, reset: () => void,
  *   syncDefaults: (next: Record<string, unknown>) => void, subscribe: (listener: () => void) => () => void,
  *   size: number}} store handle.
  */
@@ -50,6 +51,26 @@ function iuiCreateStore(defaults) {
     }
   }
 
+  /** Capped copy of one defaults object. */
+  function copyDefaults(source) {
+    /** @type {Record<string, unknown>} */
+    const fresh = {}
+    if (source === null || typeof source !== 'object') return fresh
+    for (const name of Object.keys(source)) {
+      if (countKeys(fresh) >= IUI_STATE_LIMIT) break
+      fresh[name] = source[name]
+    }
+    return fresh
+  }
+
+  /** Replace the stored defaults and the live state, without notifying. */
+  function replace(source) {
+    const fresh = copyDefaults(source)
+    stored = fresh
+    signature = Object.keys(fresh).join('\u0000')
+    state = Object.assign({}, fresh)
+  }
+
   const handle = {
     get(name) {
       return state[String(name)]
@@ -68,6 +89,26 @@ function iuiCreateStore(defaults) {
     snapshot() {
       return Object.assign({}, state)
     },
+    /** Signature of the stored defaults (declared `$variable` names), for change checks. */
+    defaultsSignature() {
+      return signature
+    },
+    /**
+     * Adopt the defaults of a re-evaluated program without notifying.
+     *
+     * The renderer calls this after the commit that already rendered from these values,
+     * so notifying would only schedule a duplicate render pass. An unchanged declared set
+     * is a no-op so user edits survive; a reshaped program resets instead, so stale
+     * variables cannot leak between programs.
+     *
+     * @param {Record<string, unknown>} next - defaults of the re-evaluated program.
+     * @returns {void}
+     */
+    adopt(next) {
+      const source = next !== null && typeof next === 'object' ? next : {}
+      if (Object.keys(source).join('\u0000') === signature) return
+      replace(source)
+    },
     reset() {
       const next = Object.assign({}, stored)
       const changed = countKeys(state) !== countKeys(next)
@@ -76,23 +117,14 @@ function iuiCreateStore(defaults) {
       if (changed) notify()
     },
     /**
-     * Adopt the defaults of a re-evaluated program. An unchanged declared set is
-     * a no-op so user edits survive; a reshaped program resets instead, so stale
-     * variables cannot leak between programs.
+     * Adopt the defaults of a re-evaluated program and re-render. Kept for callers that
+     * are not the row (the row adopts silently through {@link adopt}).
      */
     syncDefaults(next) {
       const source = next !== null && typeof next === 'object' ? next : {}
       const nextSignature = Object.keys(source).join('\u0000')
       if (nextSignature === signature) return
-      /** @type {Record<string, unknown>} */
-      const fresh = {}
-      for (const name of Object.keys(source)) {
-        if (countKeys(fresh) >= IUI_STATE_LIMIT) break
-        fresh[name] = source[name]
-      }
-      stored = fresh
-      signature = nextSignature
-      state = Object.assign({}, fresh)
+      replace(source)
       notify()
     },
     subscribe(listener) {

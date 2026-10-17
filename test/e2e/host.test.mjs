@@ -155,6 +155,21 @@ describe('host half contract (Phase A, §8)', () => {
     }
   })
 
+  test('§8 a long flat expression is validated without overflowing the stack', async () => {
+    const host = await loadHost()
+    const { tool } = registerOnce(host)
+    // The parser accepts long flat binary chains (its depth guard only bounds nesting).
+    // checkNames/walkNode must visit them iteratively: a recursive walk overflows the JS
+    // stack at a few thousand left-nested `bin` nodes (about 8 KB of source).
+    const terms = 5000
+    const chain = Array.from({ length: terms }, () => '1').join(' + ')
+    const program = `root = Col([Text("" + (${chain}))])\n`
+    const value = expectSync(tool.execute({ program }), 'execute(5000-term flat expression)')
+    assertCanonicalValue(value, 'execute(5000-term flat expression)')
+    assert.equal(value.ok, true, `a 5000-term flat expression is a valid program: ${value.diagnostics}`)
+    assert.equal(value.diagnostics, '')
+  })
+
   test('§8 row config: prompt:false, maxProgramBytes and maxDiagnostics are honoured', async () => {
     const host = await loadHost()
 

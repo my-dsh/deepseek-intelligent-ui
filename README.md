@@ -59,33 +59,61 @@ plugin_manager(action="install_bundle", target="github:my-dsh/deepseek-intellige
 
 ### 安装后
 
-profile 的 `cordis.patch.yml` 会多出一行：
+`install_bundle` 会把包装进 profile 的依赖，并把 `@my-dsh/dsh-intelligent-ui` 追加到 profile
+`package.json` 的 `dsh.profile.bundles` 列表。它**不会**往 profile 的 `cordis.patch.yml` 写行：
+真正启用插件的那一行来自本包自带的 `cordis.patch.yml`（bundle 层）：
 
 ```yaml
-- id: intelligent-ui
-  name: '@my-dsh/dsh-intelligent-ui'
+- insert:
+    - id: intelligent-ui
+      name: '@my-dsh/dsh-intelligent-ui'
 ```
 
-可在该行下加 `config` 调整行为（本插件不导出 `Config` schema，因此不做校验）：
+要调整行为，在 profile 的 `cordis.patch.yml`（用户层，最后应用、覆盖 bundle 层）里给同一个
+`id` 写一次覆盖即可（本插件不导出 `Config` schema，因此不做校验）：
 
 ```yaml
 - id: intelligent-ui
-  name: '@my-dsh/dsh-intelligent-ui'
   config:
     prompt: true          # 是否在系统提示里教这套语言，默认 true
     maxProgramBytes: 60000
     maxDiagnostics: 24
 ```
 
+### 升级 / 切换安装来源
+
+已经装过同名 bundle 时，再 `install_bundle` 会返回 `already-installed`（运行中的 bundle 不能就地替换）。
+升级或切换来源都是"先移除、再安装"：
+
+```text
+plugin_manager(action="remove_bundle", target="@my-dsh/dsh-intelligent-ui")
+plugin_manager(action="install_bundle", target="@my-dsh/dsh-intelligent-ui")
+```
+
+`remove_bundle` 同时把这一项从 `dsh.profile.bundles` 里去掉；再次安装会把它追加到列表末尾
+（会改变 bundle 的配置优先级），你写在 profile `cordis.patch.yml` 里的 `config` 覆盖不受影响。
+
 ### 本地开发安装
 
 ```bash
 git clone https://github.com/my-dsh/deepseek-intelligent-ui.git
 cd deepseek-intelligent-ui
-node scripts/build-client.mjs --strict   # 改动 src/** 后必须重新生成 client.js
+node scripts/build-client.mjs          # 严格构建：缺 fragment、重复顶层名、坏语法都会失败
 ```
 
-然后以**目录**为目标执行 `install_bundle`（绝对路径），或在 profile 的 `package.json` 里把它列进 `dsh.profile.bundles`。
+以**绝对目录**为目标安装；profile 里会记成 `link:<目录>`，之后改文件立即生效：
+
+```text
+plugin_manager(action="install_bundle", target="/absolute/path/to/deepseek-intelligent-ui")
+```
+
+- 之前装过 npm/市场版本时，先 `remove_bundle` 再装目录，否则会得到 `already-installed`。
+- **客户端热更新**：改完 `src/**` 后运行 `node scripts/build-client.mjs`；Web 端的 client-hmr
+  每 500 ms 轮询一次 bundle，`client.js` 一变页面就换新版——不用刷新页面，也不用重启 DSH。
+- **Host 半边**：`index.js`（工具与系统提示的注册）只在启动时加载，改它要重启 DSH 才生效。
+  `src/lang/**` 会打进 `client.js`，语言层的改动走上面的客户端热更新。
+- 确认页面正在跑哪一版：控制台读 `window.__DSH_INTELLIGENT_UI__.version`
+  和 `window.__DSH_INTELLIGENT_UI__.builtAt`（构建时写入的包版本与构建戳）。
 
 ## 使用
 
@@ -180,22 +208,34 @@ root = Col([Title("旧金山一日路线", "2xl"), Text(["全程 ", Text($days +
 ## 开发
 
 ```bash
-node scripts/build-client.mjs --strict   # 由 src/** 生成 client.js，缺文件即失败
+node scripts/build-client.mjs            # 由 src/** 生成 client.js（严格构建，缺文件即失败）
 node --check client.js                   # 产物语法
 node scripts/probe-client.mjs            # 在 Node 里真实执行产物：48/48 组件、73/73 函数、槽位注册
-node --test                              # 语言核心单元测试 + 语料/契约/清单 + README 示例守护（104 项）
+node --test                              # 语言核心单测 + 语料/契约/清单/发布与打包检查 + README 示例守护
+
+# 或一条命令跑完整门禁（与 CI / 发布一致）：
+npm run check
 ```
 
 构建脚本是唯一的"编译"步骤：它按固定阶段顺序把 `src/lang/**` 与 `src/client/**` 拼进一个
 `window.__ModuleLoader__.load` 闭包，剥掉 `import`/`export`，并逐片段做语法门禁与顶层重名检查，
-因此半成品文件不会产出坏产物。测试**不要**写成 `node --test test/`（Node v22.22.1 会把目录当模块，报 `MODULE_NOT_FOUND`）。
+因此半成品文件不会产出坏产物。转换是词法感知的（字符串/模板字符串/块注释里的 `import`/`export`
+不会被改写）；产物还会丢掉整行注释（JSDoc 与独占一行的 `//`），比带注释时小约 15%，
+调试产物时可用 `node scripts/build-client.mjs --keep-comments` 保留。构建是幂等的：
+源码没变时重跑不会改写 `client.js`，工作区保持干净。
+
+`.github/workflows/ci.yml` 在 push 到 main 和每个 PR 上跑同一套门禁（`npm run check` + 校验
+`client.js` 与 `src/**` 一致）；推送 `vX.Y.Z` tag 后由 `publish.yml` 重跑门禁、发布 npm 并更新
+插件市场索引。
+
+测试**不要**写成 `node --test test/`（Node 会把目录参数当成模块/测试文件而报错，直接用 `node --test`）。
 
 调试时页面控制台可读 `window.__DSH_INTELLIGENT_UI__`：已注册组件/函数数量、当前行的 `$state` 存储、
-以及 `parseProgram` / `evaluateProgram`，可以直接在里面试一段程序。
+`version`/`builtAt`、以及 `parseProgram` / `evaluateProgram`，可以直接在里面试一段程序。
 
-发布交给 CI：推 `vX.Y.Z` tag 后会跑测试、用提交里的时间戳重建 `client.js` 以确认产物与 `src/**` 一致、
-通过 **OIDC 发布到 npm（仓库里不放任何 token）**，再把新版本写进插件市场索引并提交回 main。
-一次性配置步骤与排错见 [docs/RELEASING.md](docs/RELEASING.md)。
+发布交给 CI：推 `vX.Y.Z` tag 后会跑测试、重建 `client.js` 并确认产物与 `src/**` 一致、用
+`probe-client` 真实执行产物、通过 **OIDC 发布到 npm（仓库里不放任何 token）**，再把新版本写进
+插件市场索引并提交回 main。一次性配置步骤与排错见 [docs/RELEASING.md](docs/RELEASING.md)。
 
 ## 验证状态
 
@@ -217,7 +257,8 @@ node --test                              # 语言核心单元测试 + 语料/契
 | 深色主题 | 宿主的暗色由 `body[data-ds-dark-theme]` 切换（不是 `prefers-color-scheme`）；加上该选择器后，我们的 22 个 `--iui-c-*` 全部跟随切换（chart1 `#4f7df3→#7a9dfb`、brand-soft `#e8f0ff→#1b2740`、shadow 换深色），Badge 文本对比度 `1.10:1 → 14.24:1`（WCAG AA 需 4.5） |
 | 移动端窄屏 | 390×844 模拟下：界面宽 263px、无横向溢出，表格与图表按宽度收缩，页面无横向滚动 |
 | 控制台 | 本插件无报错；页面里唯一的 404 来自随 dsh 发布的 `ui-open-in-app` 插件，与本插件无关 |
-| 浏览器外 | `node --test` 106 项全绿（含 README 示例守护）、`probe-client` PASS（48/48 组件、73/73 函数）、真实 React 18 SSR 渲染 0 warning 与 0 key 警告 |
+| 浏览器外 | `node --test` 全绿（数量以命令输出为准；含 README 示例守护与发布/打包检查）、`probe-client` PASS（48/48 组件、73/73 函数）、真实 React 18 SSR 渲染 0 warning 与 0 key 警告 |
+| 性能（2026-10-17 优化轮） | 300 行仪表盘（Table+2 Chart+每行 `@Format`）单次求值 **10.27 ms → 0.85 ms**（12×，Intl 格式化器缓存 + 稀疏行跳过空值）；5000 行表格 DOM 节点 **15,015 → 1,517**（数据组件按输出预算截断并给提示）；一次状态刷新重复打印的诊断 **30 条 → 1 条**；`client.js` **317,325 → 282,382 B**（−11%，产物去掉整行注释）。测量方式：`node --input-type=module` 直接对比 `HEAD` 与当前的 `src/lang`，以及 React 18 + jsdom 挂载真实产物后驱动滑块 |
 
 ## 当前的边界（v1）
 

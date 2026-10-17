@@ -61,6 +61,8 @@ export function evaluateProgram(program, options) {
 
   const values = new Map()
   const defaults = new Map()
+  /** Plain statement values computed while resolving `stateDefaults` (defaults-only mode). */
+  const defaultValues = new Map()
   const visiting = new Set()
   const stateDefaults = {}
   let depthReported = false
@@ -80,39 +82,45 @@ export function evaluateProgram(program, options) {
    * Evaluation environment of a statement: program scope, so a statement never sees an
    * `@Each` loop variable (the loop variable only exists inside the template).
    * @param {number} line - the statement's line.
-   * @returns {{ loops: null, line: number }} environment.
+   * @param {boolean} [defaultsMode] - resolve `$variables` to their defaults, never to `options.state`.
+   * @returns {{ loops: null, line: number, defaultsMode: boolean }} environment.
    */
-  function programEnv(line) {
-    return { loops: null, line: typeof line === 'number' ? line : 0 }
+  function programEnv(line, defaultsMode) {
+    return { loops: null, line: typeof line === 'number' ? line : 0, defaultsMode: defaultsMode === true }
   }
 
   /**
-   * Value of a plain (non-`$`) statement, memoized.
+   * Value of a plain (non-`$`) statement, memoized per mode: the defaults pass keeps its
+   * own cache so a default never inherits a value computed from `options.state`.
    * @param {string} name - statement name.
+   * @param {boolean} [defaultsMode] - whether this is the defaults-only pass.
    * @returns {any} the value, or null when unknown or part of a cycle.
    */
-  function loadValue(name) {
-    if (values.has(name)) return values.get(name)
+  function loadValue(name, defaultsMode) {
+    const cache = defaultsMode === true ? defaultValues : values
+    if (cache.has(name)) return cache.get(name)
     const statement = statementByKey.get(name)
     if (!statement) return null
-    if (visiting.has(name)) {
+    const visitKey = defaultsMode === true ? `defaults:${name}` : name
+    if (visiting.has(visitKey)) {
       report(`circular reference: "${name}" eventually refers to itself`, statement.line)
       return null
     }
-    visiting.add(name)
+    visiting.add(visitKey)
     let value = null
     try {
-      value = evaluate(statement.expr, programEnv(statement.line), false, 0)
+      value = evaluate(statement.expr, programEnv(statement.line, defaultsMode), false, 0)
     } finally {
-      visiting.delete(name)
+      visiting.delete(visitKey)
     }
-    values.set(name, value)
+    cache.set(name, value)
     return value
   }
 
   /**
    * Evaluated default of a `$name = ...` statement, memoized and independent of
-   * `options.state`.
+   * `options.state`: every `$variable` read while a default is computed resolves to that
+   * variable's own default, so a derived default is stable across sessions.
    * @param {string} name - state variable name.
    * @returns {any} the default value, or null when undeclared.
    */
@@ -128,7 +136,7 @@ export function evaluateProgram(program, options) {
     visiting.add(key)
     let value = null
     try {
-      value = evaluate(statement.expr, programEnv(statement.line), false, 0)
+      value = evaluate(statement.expr, programEnv(statement.line, true), false, 0)
     } finally {
       visiting.delete(key)
     }
@@ -144,9 +152,10 @@ export function evaluateProgram(program, options) {
    * @returns {any} the value.
    */
   function readReference(name, isState, env) {
+    const defaultsMode = env ? env.defaultsMode === true : false
     if (!isState && env && env.loops && env.loops.has(name)) return env.loops.get(name)
     if (isState) {
-      if (userState && Object.prototype.hasOwnProperty.call(userState, name)) return userState[name]
+      if (!defaultsMode && userState && Object.prototype.hasOwnProperty.call(userState, name)) return userState[name]
       if (statementByKey.has(`$${name}`)) return stateDefault(name)
       return null
     }
@@ -154,7 +163,7 @@ export function evaluateProgram(program, options) {
       report(`unknown reference "${name}": no statement defines it`, env ? env.line : 0)
       return null
     }
-    return loadValue(name)
+    return loadValue(name, defaultsMode)
   }
 
   /**
@@ -371,7 +380,7 @@ export function evaluateProgram(program, options) {
       if (item === null || item === undefined) continue
       const loops = env && env.loops ? new Map(env.loops) : new Map()
       loops.set(variable, item)
-      const value = evaluate(args[2], { loops, line: env ? env.line : line }, false, depth + 1)
+      const value = evaluate(args[2], { loops, line: env ? env.line : line, defaultsMode: env ? env.defaultsMode === true : false }, false, depth + 1)
       if (Array.isArray(value)) {
         for (const entry of value) out.push(entry)
       } else {

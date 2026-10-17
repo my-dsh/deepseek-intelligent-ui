@@ -420,7 +420,7 @@ function IuiLtCarouselView(input) {
         type: 'button',
         className: 'iui-lt-carousel__dot',
         'data-active': i === active ? 'true' : 'false',
-        'aria-label': String(i + 1),
+        'aria-label': `${ctx.t('carousel.slide')} ${i + 1}`,
         onClick: () => scrollToIndex(i),
       }))
     }
@@ -429,7 +429,7 @@ function IuiLtCarouselView(input) {
         key: 'previous',
         type: 'button',
         className: 'iui-lt-carousel__btn',
-        'aria-label': 'Previous',
+        'aria-label': ctx.t('carousel.previous'),
         disabled: active <= 0,
         onClick: () => scrollToIndex(active - 1),
       }, '\u2039'),
@@ -438,7 +438,7 @@ function IuiLtCarouselView(input) {
         key: 'next',
         type: 'button',
         className: 'iui-lt-carousel__btn',
-        'aria-label': 'Next',
+        'aria-label': ctx.t('carousel.next'),
         disabled: active >= count - 1,
         onClick: () => scrollToIndex(active + 1),
       }, '\u203a'),
@@ -490,7 +490,12 @@ function IuiLtPopoverView(input) {
       onKeyDown: onKeyDown,
     }, ctx.render(props.trigger)),
     open
-      ? h('div', { key: 'panel', className: 'iui-lt-popover__panel', role: 'dialog' }, ctx.render(props.content))
+      ? h('div', {
+        key: 'panel',
+        className: 'iui-lt-popover__panel',
+        role: 'dialog',
+        'aria-label': ctx.t('popover.panel'),
+      }, ctx.render(props.content))
       : null,
   ])
 }
@@ -848,12 +853,25 @@ iuiRegisterComponents(iuiLtKeyedEntries({
     min: 1,
     render(props, ctx) {
       const color = iuiLtValue(ctx, props.color)
+      const solid = color === undefined || color === null || color === '' ? undefined : iuiLtPaint(color)
+      const soft = color === undefined || color === null || color === '' ? undefined : iuiLtPaint(color, 'bg')
+      // A soft tint only exists for the status colours; painting a text token as its own
+      // background made the label invisible, and tinted text on a light tint failed
+      // contrast at 11px. Readable text first, colour carried by a dot.
+      const tinted = typeof soft === 'string' && soft !== solid
       const style = {}
-      if (color !== undefined && color !== null && color !== '') {
-        style.color = iuiLtPaint(color)
-        style.background = iuiLtPaint(color, 'bg')
+      if (tinted) {
+        style.background = soft
+        style.color = 'var(--dsw-alias-label-primary)'
+      } else if (solid !== undefined) {
+        style.background = 'var(--dsw-alias-bg-layer-2)'
+        style.color = solid
       }
-      return h('span', { className: 'iui-lt-badge', style: style }, iuiLtTextBody(ctx, iuiLtValue(ctx, props.text), 'badge'))
+      const children = iuiLtTextBody(ctx, iuiLtValue(ctx, props.text), 'badge')
+      if (tinted) {
+        children.push(h('span', { key: 'dot', className: 'iui-lt-badge-dot', style: { background: solid } }))
+      }
+      return h('span', { className: 'iui-lt-badge', style: style }, children)
     },
   },
 
@@ -873,7 +891,23 @@ iuiRegisterComponents(iuiLtKeyedEntries({
     min: 1,
     render(props, ctx) {
       const resolved = iuiLtValue(ctx, props.items)
-      const items = Array.isArray(resolved) ? resolved : resolved === undefined || resolved === null ? [] : [resolved]
+      const all = Array.isArray(resolved) ? resolved : resolved === undefined || resolved === null ? [] : [resolved]
+      // One dispatch must not emit an unbounded number of rows: cap the list and charge it
+      // against the row's output budget, then say what was dropped.
+      const charge = typeof ctx.charge === 'function' ? ctx.charge : null
+      const plan = (() => {
+        const total = all.length
+        const capped = Math.min(total, 500)
+        if (charge === null || capped === 0) return { rows: capped, truncated: capped < total }
+        let rows = 0
+        while (rows < capped) {
+          const step = Math.min(capped - rows, 16)
+          if (!charge(step * 2)) break
+          rows += step
+        }
+        return { rows, truncated: rows < total }
+      })()
+      const items = plan.truncated ? all.slice(0, plan.rows) : all
       const timeline = iuiLtTruthy(iuiLtValue(ctx, props.timeline))
       const listMarker = props.marker === undefined ? 'bullet' : iuiLtValue(ctx, props.marker)
       const rows = items.map((item, index) => {
@@ -894,10 +928,15 @@ iuiRegisterComponents(iuiLtKeyedEntries({
         return h('div', { key: key, className: 'iui-lt-list__item' },
           iuiLtListItemRow(ctx, parts, { marker: markerNode, timeline: timeline, last: last }))
       })
-      return h('div', {
+      const list = h('div', {
         className: 'iui-lt-list' + (timeline ? ' iui-lt-list--timeline' : ''),
         role: 'list',
       }, rows)
+      if (!plan.truncated) return list
+      return h('div', { className: 'iui-list-block' }, [
+        list,
+        h('div', { className: 'iui-notice iui-truncated', role: 'note' }, ctx.t('notice.truncated')),
+      ])
     },
   },
 

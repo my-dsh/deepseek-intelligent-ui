@@ -422,6 +422,36 @@ test('operators follow the documented semantics', () => {
   assert.ok(badCompare.result.diagnostics.some(d => /needs numbers/.test(d.message)))
 })
 
+test('stateDefaults are independent of options.state', () => {
+  const direct = 'root = Text($a + "")\n$a = 2\n$b = $a * 10'
+  assert.deepEqual(evaluateProgram(parseProgram(direct)).stateDefaults, { a: 2, b: 20 })
+  assert.deepEqual(evaluateProgram(parseProgram(direct), { state: { a: 5 } }).stateDefaults, { a: 2, b: 20 },
+    'a derived default must not be computed from the current state')
+
+  const indirect = 'root = Text($a + "")\n$a = 2\n$b = next\nnext = $a + 1'
+  assert.deepEqual(evaluateProgram(parseProgram(indirect), { state: { a: 5 } }).stateDefaults, { a: 2, b: 3 },
+    'defaults stay independent even through a plain statement')
+
+  const live = evaluateProgram(parseProgram(direct), { state: { a: 5 } })
+  assert.equal(live.root.args[0], '5', 'options.state still drives the rendered value')
+})
+
+test('the tokenizer supports // comments to the end of the line', () => {
+  const trailing = run('x = 6 // 2\nroot = Text("" + x)')
+  assert.deepEqual(trailing.program.diagnostics, [], diagText(trailing.program, trailing.result))
+  assert.equal(trailing.result.root.args[0], '6', '// is a comment, not integer division')
+
+  const noSpace = run('x = 6//2\nroot = Text("" + x)')
+  assert.equal(noSpace.result.root.args[0], '6')
+
+  const wholeLine = parseProgram('// a comment line\nroot = Col([])')
+  assert.equal(wholeLine.ok, true)
+  assert.equal(wholeLine.statements.length, 1)
+
+  const url = run('root = Text("https://example.com") // trailing note')
+  assert.equal(url.result.root.args[0], 'https://example.com', '// inside a string is not a comment')
+})
+
 test('member and index access, including array pluck', () => {
   const { result } = run([
     'root = Col([@Join(rows.name, ","), rows[1].name, rows[-1].name, rows.length + ""])',
@@ -666,6 +696,107 @@ test('aggregation built-ins', () => {
   assert.deepEqual(FUNCTIONS.Stats([[]]), { count: 0, min: 0, max: 0, mean: 0, median: 0, stdev: 0 })
 })
 
+test('missing values are skipped by aggregates, not counted as 0', () => {
+  assert.equal(FUNCTIONS.Min([[null, 5, 9]]), 5)
+  assert.equal(FUNCTIONS.Max([[null, 5, 9]]), 9)
+  assert.equal(FUNCTIONS.Avg([[null, 10]]), 10)
+  assert.equal(FUNCTIONS.Sum([[null, 10]]), 10)
+  assert.deepEqual(FUNCTIONS.Stats([[null, 10]]), { count: 1, min: 10, max: 10, mean: 10, median: 10, stdev: 0 })
+  assert.deepEqual(FUNCTIONS.GroupBy([[{ k: 'a', v: null }, { k: 'a', v: 10 }], 'k', 'v', 'avg']), [{ key: 'a', value: 10 }])
+  assert.deepEqual(FUNCTIONS.Pivot([[{ r: 'a', c: 'x', v: null }, { r: 'a', c: 'x', v: 10 }], 'r', 'c', 'v', 'sum']), [{ key: 'a', x: 10 }])
+  assert.deepEqual(FUNCTIONS.Bucket([[{ d: '2026-01-01', v: null }, { d: '2026-01-01', v: 10 }], 'd', 'day', 'v', 'avg']), [{ key: '2026-01-01', value: 10 }])
+  assert.deepEqual(FUNCTIONS.MovingAvg([[null, 10], '', 2]), [0, 10])
+  assert.deepEqual(FUNCTIONS.Histogram([[null, 1, 2], 2]).map(bin => bin.value), [1, 1])
+
+  // The documented "empty list -> null / 0" behaviour is preserved.
+  assert.equal(FUNCTIONS.Min([[]]), null)
+  assert.equal(FUNCTIONS.Max([[]]), null)
+  assert.equal(FUNCTIONS.Avg([[]]), 0)
+  assert.deepEqual(FUNCTIONS.Stats([[]]), { count: 0, min: 0, max: 0, mean: 0, median: 0, stdev: 0 })
+
+  // A missing field never satisfies an ordering comparison.
+  const partial = [{ v: null }, { v: 5 }]
+  assert.deepEqual(FUNCTIONS.Filter([partial, 'v', '<', 3]), [])
+  assert.deepEqual(FUNCTIONS.Filter([partial, 'v', '>=', 3]), [{ v: 5 }])
+  assert.deepEqual(FUNCTIONS.Filter([partial, 'v', '==', null]), [{ v: null }])
+})
+
+test('data built-ins keep their documented edge behaviour', () => {
+  // @Bucket: empty periods are 0 for sums and null for min/max.
+  assert.deepEqual(FUNCTIONS.Bucket([[{ d: '2026-01-01', v: 1 }, { d: '2026-01-03', v: 2 }], 'd', 'day', 'v', 'min']), [
+    { key: '2026-01-01', value: 1 },
+    { key: '2026-01-02', value: null },
+    { key: '2026-01-03', value: 2 },
+  ])
+  // @GroupBy with a field and agg "count" counts the rows in the group.
+  assert.deepEqual(FUNCTIONS.GroupBy([[{ k: 'a', v: null }, { k: 'a', v: 2 }], 'k', 'v', 'count']), [{ key: 'a', value: 2 }])
+  // @Pivot never lets a column overwrite the row label or another column.
+  assert.deepEqual(FUNCTIONS.Pivot([[{ r: 'a', c: 'key', v: 1 }], 'r', 'c', 'v']), [{ key: 'a', 'key (2)': 1 }])
+  assert.deepEqual(
+    FUNCTIONS.Pivot([[{ r: 'a', c: 1, v: 1 }, { r: 'a', c: '1', v: 2 }], 'r', 'c', 'v']),
+    [{ key: 'a', 1: 1, '1 (2)': 2 }],
+  )
+  // @Change is relative to |previous| and null when previous is 0.
+  assert.equal(FUNCTIONS.Change([0, -100]), 100)
+  assert.equal(FUNCTIONS.Change([1, 0]), null)
+})
+
+test('@Unique deduplicates primitives in O(n) and structures by value', () => {
+  assert.deepEqual(FUNCTIONS.Unique([[1, '1', 1, null, undefined, NaN, NaN]]), [1, '1', null, NaN])
+  assert.deepEqual(FUNCTIONS.Unique([[{ a: 1 }, { a: 1 }, [1], [1], { a: 2 }]]), [{ a: 1 }, [1], { a: 2 }])
+
+  const many = Array.from({ length: 8000 }, (_, index) => index)
+  const started = process.hrtime.bigint()
+  const unique = FUNCTIONS.Unique([many])
+  const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6
+  assert.equal(unique.length, 8000)
+  assert.ok(elapsedMs < 500, `@Unique over 8000 numbers took ${elapsedMs.toFixed(1)} ms`)
+})
+
+test('enum arguments are validated instead of silently falling back', () => {
+  const call = (name, args) => {
+    const diagnostics = []
+    const value = callFunction(name, args, message => diagnostics.push(message))
+    return { value, diagnostics }
+  }
+  const badKind = call('Format', [45, 'money'])
+  assert.equal(badKind.value, null)
+  assert.match(badKind.diagnostics[0], /@Format expects/)
+
+  const badStyle = call('Duration', [60, 'verbose'])
+  assert.equal(badStyle.value, null)
+  assert.match(badStyle.diagnostics[0], /@Duration expects/)
+
+  const badDirection = call('Top', [[{ v: 1 }], 'v', 1, 'sideways'])
+  assert.equal(badDirection.value, null)
+  assert.match(badDirection.diagnostics[0], /@Top expects/)
+  assert.equal(call('Sort', [[{ v: 1 }], 'v', 'up']).value, null)
+
+  // Documented synonyms are accepted.
+  assert.deepEqual(FUNCTIONS.Top([[{ v: 1 }, { v: 3 }, { v: 2 }], 'v', 2, 'ascending']), [{ v: 1 }, { v: 2 }])
+  assert.deepEqual(FUNCTIONS.Sort([[{ v: 1 }, { v: 3 }, { v: 2 }], 'v', 'descending']), [{ v: 3 }, { v: 2 }, { v: 1 }])
+  assert.equal(FUNCTIONS.Duration([60, 'clock']), '1:00')
+  assert.equal(FUNCTIONS.Format([45, 'percent']), '45%')
+})
+
+test('@Format and @FormatDate stay correct over many rows', () => {
+  const rows = Array.from({ length: 300 }, (_, index) => `{name: "r${index}", value: ${index * 3}, date: "2026-10-${String((index % 28) + 1).padStart(2, '0')}"}`).join(',')
+  const source = `root = Table(["n", "v", "d"], @Each(rows, "r", [r.name, @Format(r.value, "number"), @FormatDate(r.date, "short")]))\nrows = [${rows}]`
+  const program = parseProgram(source)
+  const started = process.hrtime.bigint()
+  const result = evaluateProgram(program)
+  const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6
+  assert.equal(result.ok, true, diagText(program, result))
+  // @Each concatenates array templates one level, so the row cells are flat in template order.
+  const cells = result.root.args[1]
+  assert.equal(cells.length, 900)
+  assert.equal(cells[1], '0')
+  assert.equal(cells[299 * 3 + 1], '897')
+  assert.equal(cells[0], 'r0')
+  assert.equal(cells[299 * 3], 'r299')
+  assert.ok(elapsedMs < 1000, `300 formatted rows took ${elapsedMs.toFixed(1)} ms`)
+})
+
 // ---------------------------------------------------------------------------
 // Signatures and prompt text
 // ---------------------------------------------------------------------------
@@ -727,6 +858,29 @@ test('component argument order and required counts match the frozen table', () =
   assert.deepEqual(args('Spacer'), [])
 })
 
+test('taught enum values are the ones the renderer accepts', () => {
+  const byName = new Map(COMPONENT_SIGNATURES.map(signature => [signature.name, signature]))
+  const quoted = (name, arg) => {
+    const entry = byName.get(name).args.find(candidate => candidate.name === arg)
+    return (entry.type.match(/"[^"]+"/g) ?? []).map(value => value.slice(1, -1))
+  }
+
+  // src/client/components: Card maps outlined/soft/elevated, Button and IconButton map
+  // primary/secondary/ghost/outline/danger, Badge paints IUI_COLORS (no "neutral"),
+  // RadioGroup only recognises cards (list is the default layout), List has dash/check,
+  // Text has no 3xl (Title does), Image supports cover/contain.
+  assert.deepEqual(quoted('Card', 'variant'), ['soft', 'outlined', 'elevated'])
+  for (const name of ['Button', 'IconButton']) {
+    assert.deepEqual(quoted(name, 'variant'), ['primary', 'secondary', 'ghost', 'outline', 'danger'], name)
+  }
+  assert.deepEqual(quoted('RadioGroup', 'variant'), ['list', 'cards'])
+  assert.deepEqual(quoted('Text', 'size'), ['xs', 'sm', 'md', 'lg', 'xl', '2xl'])
+  assert.ok(quoted('Title', 'size').includes('3xl'), 'the Title scale has 3xl')
+  assert.ok(!quoted('Badge', 'color').includes('neutral'), 'Badge has no "neutral" colour token')
+  assert.deepEqual(quoted('List', 'marker'), ['bullet', 'number', 'dash', 'check', 'none'])
+  assert.deepEqual(quoted('Image', 'fit'), ['cover', 'contain'])
+})
+
 test('FUNCTION_SIGNATURES covers the v1 functions plus @Each', () => {
   assert.deepEqual(
     FUNCTION_SIGNATURES.map(signature => signature.name),
@@ -755,15 +909,24 @@ test('EXAMPLES are two short, valid programs', () => {
 
 test('systemPromptSectionText teaches every name inside the size budget', () => {
   const text = systemPromptSectionText()
-  assert.ok(text.length < 8000, `prompt is ${text.length} characters`)
+  assert.ok(text.length < 8400, `prompt is ${text.length} characters`)
   assert.match(text, /intelligent_ui/)
   assert.match(text, /POSITIONAL/)
   assert.match(text, /@Each/)
   assert.match(text, /Actions/)
   assert.match(text, /physical line/, 'prompt must forbid statements that span lines')
-  assert.match(text, /quote any non-ASCII key/, 'prompt must require quoted non-ASCII object keys')
-  assert.match(text, /"outline" or "soft"/, 'prompt must teach the Card variant values')
+  assert.match(text, /Names are ASCII/, 'prompt must say identifiers are ASCII only')
+  assert.match(text, /object keys are bare ASCII identifiers or quoted/, 'prompt must require quoted non-ASCII object keys')
+  assert.match(text, /Card` variant "soft" or "outlined"/, 'prompt must teach the real Card variant values')
   assert.match(text, /@Payment\(principal, rate, periods\)/, 'prompt must teach @Payment for loan math')
+  assert.match(text, /skip a middle optional with `null`/, 'prompt must teach the null argument placeholder')
+  assert.match(text, /`\/\/` starts a comment/, 'prompt must teach // comments')
+  assert.match(text, /loop variable has no `\$`/, 'prompt must teach the @Each loop-variable scope')
+  assert.match(text, /`&&`, `\|\|` and `!` return true\/false/, 'prompt must teach boolean && / || / !')
+  assert.match(text, /60,000 characters/, 'prompt must teach the program size cap')
+  assert.match(text, /0\.45 → 45%/, 'prompt must tell the two percent conventions apart')
+  assert.match(text, /@Sort`\/`@Top` dir asc\|desc/, 'prompt must teach the validated enum arguments')
+  assert.match(text, /`@Format` kind number\|currency\|percent\|compact/, 'prompt must teach the @Format kinds')
 
   for (const signature of COMPONENT_SIGNATURES) {
     assert.ok(text.includes(`${signature.name}(`), `prompt must teach ${signature.name}`)

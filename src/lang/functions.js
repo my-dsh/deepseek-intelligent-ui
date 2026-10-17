@@ -101,6 +101,19 @@ export function fxToNumber(value) {
 }
 
 /**
+ * Numeric coercion for aggregate inputs: a missing value (`null`, `undefined`, `""`)
+ * is *absent*, not zero, so `@Avg`, `@Min`, `@Max`, `@Stats` and the grouping helpers
+ * skip it instead of quietly counting it as 0. Non-numeric text is `NaN` as well.
+ * @param {unknown} value - candidate.
+ * @returns {number} the number, or NaN when the value is missing or not numeric.
+ */
+export function fxMaybeNumber(value) {
+  if (value === null || value === undefined) return NaN
+  if (typeof value === 'string' && value.trim() === '') return NaN
+  return fxToNumber(value)
+}
+
+/**
  * Strict numeric coercion for built-in arguments.
  * @param {unknown} value - candidate.
  * @param {string} name - built-in name, for the error message.
@@ -110,6 +123,22 @@ function fxNumber(value, name) {
   const number = fxToNumber(value)
   if (Number.isNaN(number)) fxBad(`${name} expects a number`)
   return number
+}
+
+/**
+ * Validate an enumerable argument, so a typo becomes a diagnostic instead of a silent
+ * fallback. Synonyms are normalised to the documented value.
+ * @param {string} name - built-in name, for the error message.
+ * @param {unknown} value - the argument value.
+ * @param {string[]} allowed - accepted (already normalised) values.
+ * @param {Record<string, string>} [aliases] - synonym -> allowed value.
+ * @returns {string} the normalised value.
+ */
+function fxEnum(name, value, allowed, aliases) {
+  const text = value === null || value === undefined ? '' : String(value).trim().toLowerCase()
+  if (aliases && Object.prototype.hasOwnProperty.call(aliases, text)) return aliases[text]
+  if (allowed.includes(text)) return text
+  fxBad(`${name} expects ${allowed.map(entry => JSON.stringify(entry)).join(', ')}`)
 }
 
 /**
@@ -229,13 +258,18 @@ function fxMatches(left, operator, right) {
     case '!=':
       return !fxDeepEqual(left, right)
     case '>':
-      return fxCompareValues(left, right) > 0
     case '<':
-      return fxCompareValues(left, right) < 0
     case '>=':
-      return fxCompareValues(left, right) >= 0
-    case '<=':
-      return fxCompareValues(left, right) <= 0
+    case '<=': {
+      // A missing field is not 0: ordering comparisons only match present values.
+      if (left === null || left === undefined || left === '') return false
+      if (right === null || right === undefined || right === '') return false
+      const order = fxCompareValues(left, right)
+      if (operator === '>') return order > 0
+      if (operator === '<') return order < 0
+      if (operator === '>=') return order >= 0
+      return order <= 0
+    }
     case 'contains':
       if (Array.isArray(left)) return left.some(item => fxDeepEqual(item, right))
       if (typeof left === 'string') return left.includes(fxText(right))
@@ -440,17 +474,64 @@ function fxToHex(channels) {
 }
 
 /**
+ * Bounded cache of `Intl` formatters. Constructing an `Intl.NumberFormat` costs ~15 µs,
+ * so a per-row `@Format` in an `@Each` template dominated evaluation time (300 rows with
+ * two `@Format` calls took 10.9 ms; reusing the formatter takes under 1 ms). Keys are
+ * `locale + JSON options`; the locale is fixed to `en-US` so host and client output stay
+ * deterministic, and at most `fxFormatterLimit` entries are kept per kind.
+ */
+const fxFormatterLimit = 64
+/** @type {Map<string, Intl.NumberFormat | null>} */
+const fxNumberFormatters = new Map()
+/** @type {Map<string, Intl.DateTimeFormat | null>} */
+const fxDateFormatters = new Map()
+
+/**
+ * Get (or build once) a formatter from a bounded cache.
+ * @param {Map<string, any>} cache - the per-kind cache.
+ * @param {string} locale - locale passed to `Intl`.
+ * @param {object} options - `Intl` options.
+ * @param {(locale: string, options: object) => any} factory - constructor for the formatter.
+ * @returns {any} the formatter, or null when `Intl` rejects the options.
+ */
+function fxCachedFormatter(cache, locale, options, factory) {
+  const key = `${locale}|${JSON.stringify(options)}`
+  if (cache.has(key)) return cache.get(key)
+  let formatter = null
+  try {
+    formatter = factory(locale, options)
+  } catch (error) {
+    formatter = null
+  }
+  if (cache.size < fxFormatterLimit) cache.set(key, formatter)
+  return formatter
+}
+
+/**
+ * Format with a cached `Intl.NumberFormat`.
+ * @param {number} value - the number.
+ * @param {object} options - `Intl.NumberFormat` options.
+ * @returns {string | null} the formatted text, or null when `Intl` rejected the options.
+ */
+function fxFormatWith(value, options) {
+  const formatter = fxCachedFormatter(fxNumberFormatters, 'en-US', options, (locale, opts) => new Intl.NumberFormat(locale, opts))
+  if (formatter === null) return null
+  try {
+    return formatter.format(value)
+  } catch (error) {
+    return null
+  }
+}
+
+/**
  * Format a number with `Intl`, falling back to plain text.
  * @param {number} value - the number.
  * @param {object} options - `Intl.NumberFormat` options.
  * @returns {string} the formatted text.
  */
 function fxFormatNumber(value, options) {
-  try {
-    return new Intl.NumberFormat('en-US', options).format(value)
-  } catch (error) {
-    return String(value)
-  }
+  const text = fxFormatWith(value, options)
+  return text === null ? String(value) : text
 }
 
 /**
@@ -489,7 +570,7 @@ const fxImplementations = {
     const list = fxList(args[0], '@Sum')
     let total = 0
     for (const item of list) {
-      const number = fxToNumber(item)
+      const number = fxMaybeNumber(item)
       if (!Number.isNaN(number)) total += number
     }
     return total
@@ -500,7 +581,7 @@ const fxImplementations = {
     let total = 0
     let count = 0
     for (const item of list) {
-      const number = fxToNumber(item)
+      const number = fxMaybeNumber(item)
       if (!Number.isNaN(number)) {
         total += number
         count += 1
@@ -513,7 +594,7 @@ const fxImplementations = {
     const list = fxList(args[0], '@Min')
     let result = null
     for (const item of list) {
-      const number = fxToNumber(item)
+      const number = fxMaybeNumber(item)
       if (Number.isNaN(number)) continue
       if (result === null || number < result) result = number
     }
@@ -524,7 +605,7 @@ const fxImplementations = {
     const list = fxList(args[0], '@Max')
     let result = null
     for (const item of list) {
-      const number = fxToNumber(item)
+      const number = fxMaybeNumber(item)
       if (Number.isNaN(number)) continue
       if (result === null || number > result) result = number
     }
@@ -534,8 +615,8 @@ const fxImplementations = {
   Sort(args) {
     const list = fxList(args[0], '@Sort')
     const field = args.length > 1 ? fxKey(args[1]) : ''
-    const direction = args.length > 2 && args[2] !== null && args[2] !== undefined ? String(args[2]) : 'asc'
-    if (direction !== 'asc' && direction !== 'desc') fxBad('@Sort expects "asc" or "desc"')
+    const requested = args.length > 2 && args[2] !== null && args[2] !== undefined ? args[2] : 'asc'
+    const direction = fxEnum('@Sort', requested, ['asc', 'desc'], { ascending: 'asc', descending: 'desc' })
     const sign = direction === 'desc' ? -1 : 1
     return list
       .map((item, index) => ({ item, index }))
@@ -686,11 +767,21 @@ const fxImplementations = {
 
   Unique(args) {
     const list = fxList(args[0], '@Unique')
-    const seen = []
+    // Primitives are deduplicated through a Set (O(n)); only objects and arrays need the
+    // structural comparison, which keeps the common `@Unique(numbers)` fast.
+    const seenPrimitives = new Set()
+    const seenContainers = []
     const out = []
     for (const item of list) {
-      if (seen.some(entry => fxDeepEqual(entry, item))) continue
-      seen.push(item)
+      if (item !== null && typeof item === 'object') {
+        if (seenContainers.some(entry => fxDeepEqual(entry, item))) continue
+        seenContainers.push(item)
+        out.push(item)
+        continue
+      }
+      const key = item === null || item === undefined ? '\u0000nullish' : `${typeof item}:${String(item)}`
+      if (seenPrimitives.has(key)) continue
+      seenPrimitives.add(key)
       out.push(item)
     }
     return out
@@ -854,7 +945,8 @@ const fxImplementations = {
   Format(args) {
     const value = args[0]
     if (value === null || value === undefined || value === '') return ''
-    const kind = args.length > 1 && args[1] !== null && args[1] !== undefined ? String(args[1]) : 'number'
+    const requested = args.length > 1 && args[1] !== null && args[1] !== undefined ? args[1] : 'number'
+    const kind = fxEnum('@Format', requested, ['number', 'currency', 'percent', 'compact'])
     const decimals = args.length > 2 && args[2] !== null && args[2] !== undefined ? Math.max(0, Math.min(20, Math.trunc(fxNumber(args[2], '@Format')))) : null
     const currency = args.length > 3 && args[3] !== null && args[3] !== undefined ? String(args[3]).toUpperCase() : null
     const number = fxToNumber(value)
@@ -863,16 +955,14 @@ const fxImplementations = {
     if (kind === 'currency') {
       const code = currency || 'USD'
       const digits = decimals === null ? 2 : decimals
-      try {
-        return new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: code,
-          minimumFractionDigits: digits,
-          maximumFractionDigits: digits,
-        }).format(number)
-      } catch (error) {
-        return `${code} ${fxFormatNumber(number, { minimumFractionDigits: digits, maximumFractionDigits: digits })}`
-      }
+      const formatted = fxFormatWith(number, {
+        style: 'currency',
+        currency: code,
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits,
+      })
+      if (formatted !== null) return formatted
+      return `${code} ${fxFormatNumber(number, { minimumFractionDigits: digits, maximumFractionDigits: digits })}`
     }
     if (kind === 'percent') {
       const options = decimals === null ? { maximumFractionDigits: 2 } : { minimumFractionDigits: decimals, maximumFractionDigits: decimals }
@@ -881,16 +971,14 @@ const fxImplementations = {
     if (kind === 'compact') {
       const digits = decimals === null ? 1 : decimals
       if (currency) {
-        try {
-          return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency,
-            notation: 'compact',
-            maximumFractionDigits: digits,
-          }).format(number)
-        } catch (error) {
-          return `${currency} ${fxFormatNumber(number, { notation: 'compact', maximumFractionDigits: digits })}`
-        }
+        const formatted = fxFormatWith(number, {
+          style: 'currency',
+          currency,
+          notation: 'compact',
+          maximumFractionDigits: digits,
+        })
+        if (formatted !== null) return formatted
+        return `${currency} ${fxFormatNumber(number, { notation: 'compact', maximumFractionDigits: digits })}`
       }
       return fxFormatNumber(number, { notation: 'compact', maximumFractionDigits: digits })
     }
@@ -972,7 +1060,8 @@ const fxImplementations = {
 
   Duration(args) {
     const seconds = Math.max(0, Math.round(fxNumber(args[0], '@Duration')))
-    const style = args.length > 1 && args[1] !== null && args[1] !== undefined ? String(args[1]) : 'short'
+    const requested = args.length > 1 && args[1] !== null && args[1] !== undefined ? args[1] : 'short'
+    const style = fxEnum('@Duration', requested, ['short', 'clock'])
     const hours = Math.floor(seconds / 3600)
     const minutes = Math.floor((seconds % 3600) / 60)
     const rest = seconds % 60
@@ -1030,8 +1119,10 @@ const fxImplementations = {
     }
     const options = styles[style]
     if (!options) fxBad(`@FormatDate does not know the style ${JSON.stringify(style)}`)
+    const formatter = fxCachedFormatter(fxDateFormatters, 'en-US', options, (locale, opts) => new Intl.DateTimeFormat(locale, opts))
+    if (formatter === null) return fxDateIso(date)
     try {
-      return new Intl.DateTimeFormat('en-US', options).format(date)
+      return formatter.format(date)
     } catch (error) {
       return fxDateIso(date)
     }
@@ -1106,7 +1197,7 @@ const fxImplementations = {
       }
       group.count += 1
       if (field) {
-        const number = fxToNumber(fxField(row, field))
+        const number = fxMaybeNumber(fxField(row, field))
         if (!Number.isNaN(number)) group.values.push(number)
       }
     }
@@ -1144,15 +1235,31 @@ const fxImplementations = {
       const cell = entry.columns.get(columnMapKey)
       cell.count += 1
       if (field) {
-        const number = fxToNumber(fxField(row, field))
+        const number = fxMaybeNumber(fxField(row, field))
         if (!Number.isNaN(number)) cell.values.push(number)
       }
+    }
+    // Column labels are the stringified column-key values, but "key" is the row-label
+    // column: a colliding or duplicate label gets a numeric suffix instead of silently
+    // overwriting another column (or the row key itself).
+    const columnLabels = new Map()
+    const usedLabels = new Set(['key'])
+    for (const columnMapKey of columnOrder) {
+      const base = columnValues.get(columnMapKey)
+      let label = base
+      let suffix = 2
+      while (usedLabels.has(label)) {
+        label = `${base} (${suffix})`
+        suffix += 1
+      }
+      usedLabels.add(label)
+      columnLabels.set(columnMapKey, label)
     }
     return rowOrder.map((rowMapKey) => {
       const entry = cells.get(rowMapKey)
       const out = { key: entry.value }
       for (const columnMapKey of columnOrder) {
-        const label = columnValues.get(columnMapKey)
+        const label = columnLabels.get(columnMapKey)
         const cell = entry.columns.get(columnMapKey)
         out[label] = cell
           ? (field ? fxAggregate(aggregation, cell.values, cell.count) : cell.count)
@@ -1167,7 +1274,8 @@ const fxImplementations = {
     const rows = fxList(args[0], '@Top')
     const field = fxKey(args[1])
     const count = Math.max(0, Math.trunc(fxNumber(args[2], '@Top')))
-    const direction = args.length > 3 && args[3] !== null && args[3] !== undefined ? String(args[3]) : 'desc'
+    const requested = args.length > 3 && args[3] !== null && args[3] !== undefined ? args[3] : 'desc'
+    const direction = fxEnum('@Top', requested, ['asc', 'desc'], { ascending: 'asc', descending: 'desc' })
     const sign = direction === 'asc' ? 1 : -1
     return rows
       .map((row, index) => ({ row, index }))
@@ -1216,7 +1324,7 @@ const fxImplementations = {
       }
       bucket.count += 1
       if (field) {
-        const number = fxToNumber(fxField(row, field))
+        const number = fxMaybeNumber(fxField(row, field))
         if (!Number.isNaN(number)) bucket.values.push(number)
       }
     }
@@ -1242,13 +1350,13 @@ const fxImplementations = {
     let total = 0
     if (field === '') {
       return rows.map((value) => {
-        const number = fxToNumber(value)
+        const number = fxMaybeNumber(value)
         if (!Number.isNaN(number)) total += number
         return total
       })
     }
     return rows.map((row) => {
-      const number = fxToNumber(fxField(row, field))
+      const number = fxMaybeNumber(fxField(row, field))
       if (!Number.isNaN(number)) total += number
       if (!fxIsPlainObject(row)) return total
       const copy = { ...row }
@@ -1265,7 +1373,7 @@ const fxImplementations = {
     const recent = []
     return rows.map((row) => {
       const source = field === '' ? row : fxField(row, field)
-      const number = fxToNumber(source)
+      const number = fxMaybeNumber(source)
       if (!Number.isNaN(number)) {
         recent.push(number)
         if (recent.length > window) recent.shift()
@@ -1295,7 +1403,7 @@ const fxImplementations = {
     if (bins < 1) fxBad('@Histogram needs at least one bin')
     const values = []
     for (const item of list) {
-      const number = fxToNumber(item)
+      const number = fxMaybeNumber(item)
       if (!Number.isNaN(number)) values.push(number)
     }
     if (values.length === 0) return []
@@ -1328,7 +1436,7 @@ const fxImplementations = {
     const list = fxList(args[0], '@Stats')
     const values = []
     for (const item of list) {
-      const number = fxToNumber(item)
+      const number = fxMaybeNumber(item)
       if (!Number.isNaN(number)) values.push(number)
     }
     if (values.length === 0) return { count: 0, min: 0, max: 0, mean: 0, median: 0, stdev: 0 }

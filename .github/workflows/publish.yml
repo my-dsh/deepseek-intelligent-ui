@@ -15,8 +15,9 @@
 # The tagged tree is what gets published; the market index is committed on main,
 # which moves past every release. A failed run can therefore simply be re-run.
 #
-# Requires npm >= 11.5.1 on a GitHub-hosted runner. The `contents: write` below is
-# what lets the last step push the regenerated index back to main: a workflow's
+# Requires npm >= 11.5.1 on a GitHub-hosted runner, so the npm upgrade is pinned to
+# the major that was proven here instead of `@latest`. The `contents: write` below
+# is what lets the last step push the regenerated index back to main: a workflow's
 # `permissions` key overrides the repository's default workflow permissions, so no
 # repository setting has to change.
 name: Publish
@@ -26,7 +27,9 @@ on:
     tags: ['v*']
 
 concurrency:
-  group: publish-${{ github.ref }}
+  # One release at a time. Releases are not per-tag independent: each one pushes a
+  # market-index commit to main, and two in flight would race that push.
+  group: publish
   cancel-in-progress: false
 
 permissions:
@@ -52,7 +55,9 @@ jobs:
           package-manager-cache: false
 
       - name: Update npm
-        run: npm install -g npm@latest
+        # Trusted publishing needs npm >= 11.5.1. Pin the major so a new npm release
+        # cannot break a publish mid-release; bump this deliberately.
+        run: npm install -g npm@11
 
       - name: The tag must match package.json and sit on the main line
         run: |
@@ -74,24 +79,45 @@ jobs:
 
       - name: client.js must match its sources
         run: |
-          # Rebuild with the committed stamp so an unchanged tree stays byte-identical.
-          stamp="$(grep -o 'builtAt: "[^"]*"' client.js | head -1 | cut -d '"' -f2)"
-          IUI_BUILT_AT="$stamp" node scripts/build-client.mjs --strict
+          # The build is strict and reuses the committed stamp, so an unchanged tree
+          # rebuilds byte-identically and a diff can only mean a stale artifact.
+          node scripts/build-client.mjs
           if ! git diff --exit-code -- client.js; then
-            echo "::error::client.js is stale — run node scripts/build-client.mjs --strict and commit the result"
+            echo "::error::client.js is stale — run node scripts/build-client.mjs and commit the result"
             exit 1
           fi
+
+      - name: The bundle must load and register its surface
+        # A syntactically valid client.js is not enough: probe-client executes the
+        # artifact and checks the slot registration plus the component/function sets.
+        run: node --check client.js && node scripts/probe-client.mjs
 
       - name: Publish to npm
         run: |
           name="$(node -p "require('./package.json').name")"
           version="$(node -p "require('./package.json').version")"
+          # A prerelease never moves the `latest` dist-tag.
+          case "$version" in
+            *-*) dist_tag=next ;;
+            *) dist_tag=latest ;;
+          esac
           # A re-run of a release that failed after publishing must still reach the
           # index step, and npm rejects a repeated version.
           if npm view "${name}@${version}" version >/dev/null 2>&1; then
             echo "${name}@${version} is already on npm; skipping the publish"
           else
-            npm publish
+            npm publish --tag "$dist_tag"
+            # Registry reads can lag the publish by a moment; retry before failing.
+            published=""
+            for attempt in 1 2 3 4 5; do
+              published="$(npm view "${name}" "dist-tags.${dist_tag}" 2>/dev/null || true)"
+              if [ "$published" = "$version" ]; then break; fi
+              sleep 3
+            done
+            if [ "$published" != "$version" ]; then
+              echo "::error::published ${name}@${version} but dist-tag ${dist_tag} points at ${published:-nothing}"
+              exit 1
+            fi
           fi
 
       - name: List the release in the plugin market index
@@ -102,9 +128,14 @@ jobs:
           # into main's copy while the release itself stays exactly what the tag holds.
           # The updater is taken from the tag rather than from main, so a release is
           # updated by the very tooling it tested and ships.
+          #
+          # main's package.json may already name the next release, so the entry's
+          # engines come from the tagged manifest instead.
+          git show "${GITHUB_REF_NAME}:package.json" > "$RUNNER_TEMP/tagged-package.json"
+          tagged_engines="$(node -e 'const manifest = require(process.argv[1]); process.stdout.write(JSON.stringify(manifest.engines ?? {}))' "$RUNNER_TEMP/tagged-package.json")"
           git checkout -B market-index origin/main
           git show "${GITHUB_REF_NAME}:scripts/update-market-index.mjs" > scripts/update-market-index.mjs
-          node scripts/update-market-index.mjs "$version"
+          IUI_MARKET_ENGINES_JSON="$tagged_engines" node scripts/update-market-index.mjs "$version"
           if git diff --quiet -- market/index.json; then
             echo "market/index.json already lists ${name}@${version}"
             exit 0
