@@ -41,6 +41,17 @@ plugin_manager(action="install_bundle", target="github:my-dsh/deepseek-intellige
   name: '@my-dsh/dsh-intelligent-ui'
 ```
 
+### 从 npm 安装
+
+已发布到 npm：<https://www.npmjs.com/package/@my-dsh/dsh-intelligent-ui>
+
+```text
+plugin_manager(action="install_bundle", target="@my-dsh/dsh-intelligent-ui")
+```
+
+包名必须带 `@my-dsh/` scope：npm 上裸名 `dsh-intelligent-ui` 已被另一个同名插件占用，
+用裸名安装会装到别人的包。
+
 ### 本地开发安装
 
 ```bash

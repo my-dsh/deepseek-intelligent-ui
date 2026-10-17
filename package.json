@@ -41,6 +41,10 @@
     "icon.svg",
     "README.md"
   ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "build": "node scripts/build-client.mjs --strict",
     "test": "node --test",
