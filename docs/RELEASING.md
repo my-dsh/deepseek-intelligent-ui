@@ -25,10 +25,12 @@ On <https://www.npmjs.com/package/@my-dsh/dsh-intelligent-ui> → *Settings* →
 The workflow filename is matched exactly and case-sensitively, so renaming
 `.github/workflows/publish.yml` stops publishing until the setting is updated.
 
-### 2. Let the workflow push the index
+### 2. Nothing else, usually
 
-*Settings* → *Actions* → *General* → *Workflow permissions* → **Read and write
-permissions**. The last step commits the regenerated `market/index.json` to main.
+The workflow's own `permissions: contents: write` overrides the repository's
+default workflow permissions, which are read-only here, so the index commit does
+not depend on *Settings* → *Actions* → *General*. Only an organization policy that
+pins those defaults, or branch protection on main, can block that push.
 
 ### 3. Optional: drop the local token
 
@@ -54,6 +56,8 @@ The workflow then:
 3. runs `npm publish` — OIDC, public access, and a provenance attestation
    generated automatically because both the repository and the package are public
    (verify with `npm audit signatures`, or `npm view @my-dsh/dsh-intelligent-ui dist.attestations`);
+   a version that is already on the registry is skipped, so re-running a release
+   that failed later still reaches the index step;
 4. runs `scripts/update-market-index.mjs`, which asks the registry when the version
    was published and adds `{ version, publishTimestamp, source: { type: 'npm' } }`
    to `market/index.json`;
@@ -87,7 +91,7 @@ checkout.
 | `does not point at the tip of main` | the tag sits on an older commit; push main first |
 | `client.js is stale` | run `node scripts/build-client.mjs --strict` and commit the artifact |
 | `npm publish` fails with an OIDC or 404 error | the trusted publisher is missing, or its workflow filename differs from `publish.yml` |
-| the index commit is rejected | Workflow permissions are read-only, or main is protected |
+| the index commit is rejected | an organization policy pins read-only workflow permissions, or main is protected |
 | the new version is missing from the index | `update-market-index` polls the registry for up to two minutes, then warns and uses the current time; re-run it locally to correct the timestamp |
 | installation is refused as incompatible | `engines.dsh` is a gate — an older DSH blocks activation and the plugin manager offers an exact-version exemption |
 

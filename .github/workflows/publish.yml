@@ -12,9 +12,10 @@
 # Then release with `npm version patch && git push --follow-tags`. See
 # docs/RELEASING.md.
 #
-# Requires npm >= 11.5.1 on a GitHub-hosted runner. The last step pushes the
-# regenerated index back to main, so Settings → Actions → General → Workflow
-# permissions must allow read and write.
+# Requires npm >= 11.5.1 on a GitHub-hosted runner. The `contents: write` below is
+# what lets the last step push the regenerated index back to main: a workflow's
+# `permissions` key overrides the repository's default workflow permissions, so no
+# repository setting has to change.
 name: Publish
 
 on:
@@ -75,7 +76,16 @@ jobs:
           fi
 
       - name: Publish to npm
-        run: npm publish
+        run: |
+          name="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+          # A re-run of a release that failed after publishing must still reach the
+          # index step, and npm rejects a repeated version.
+          if npm view "${name}@${version}" version >/dev/null 2>&1; then
+            echo "${name}@${version} is already on npm; skipping the publish"
+          else
+            npm publish
+          fi
 
       - name: List the release in the plugin market index
         run: node scripts/update-market-index.mjs
