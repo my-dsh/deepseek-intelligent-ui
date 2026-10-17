@@ -32,11 +32,9 @@
       "versions": [
         {
           "version": "1.0.2",
-          "publishTimestamp": 1792204672,
+          "publishTimestamp": 1792207534,
           "source": {
-            "type": "git",
-            "url": "https://github.com/my-dsh/deepseek-intelligent-ui",
-            "commit": "136372fa54947eee7d864692a8c2ad0505cda869"
+            "type": "npm"
           },
           "engines": {
             "dsh": ">=0.2.1-alpha.4"
