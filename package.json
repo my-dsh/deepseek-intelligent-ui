@@ -1,6 +1,6 @@
 {
   "name": "@my-dsh/dsh-intelligent-ui",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "type": "module",
   "engines": {
     "dsh": ">=0.2.1-alpha.4"
