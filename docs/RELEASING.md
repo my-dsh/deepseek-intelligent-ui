@@ -40,6 +40,7 @@ releases. Publishing by hand still works without it.
 ## Releasing
 
 ```bash
+git pull --rebase        # CI commits the market index to main after every release
 npm version patch        # or minor / major: bumps, commits and tags
 git push --follow-tags   # pushes main and the tag
 ```
